@@ -1,0 +1,15 @@
+pandas
+numpy
+scikit-learn
+xgboost
+fastapi
+uvicorn
+streamlit
+plotly
+matplotlib
+seaborn
+shap
+pydantic
+python-multipart
+requests
+streamlit-option-menu

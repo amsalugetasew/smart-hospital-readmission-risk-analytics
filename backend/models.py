@@ -30,6 +30,7 @@ class PredictionResponse(BaseModel):
     probability: float
     risk_category: str
     feature_importance: Dict[str, float]
+    model_type: Optional[str] = None
 
 class AnalyticsResponse(BaseModel):
     total_patients: int

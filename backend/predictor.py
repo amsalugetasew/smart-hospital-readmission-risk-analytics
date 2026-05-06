@@ -83,7 +83,8 @@ class HealthcarePredictor:
             "prediction": prediction,
             "probability": float(prob),
             "risk_category": risk_category,
-            "feature_importance": feature_importance
+            "feature_importance": feature_importance,
+            "model_type": type(self.model).__name__ if self.model else "Unknown"
         }
         
 predictor = HealthcarePredictor()

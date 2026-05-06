@@ -237,6 +237,36 @@ elif page == "EDA":
         col3.metric("Missing Values", df.isna().sum().sum())
         
         st.dataframe(df.head(), use_container_width=True)
+        
+        with st.expander("Data Quality Analysis (Missing Values & Outliers)"):
+            col1, col2 = st.columns(2)
+            with col1:
+                st.write("#### Missing Values per Column (%)")
+                missing_pct = (df.isna().sum() / len(df)) * 100
+                missing_df = pd.DataFrame({"Feature": missing_pct.index, "Missing (%)": missing_pct.values})
+                missing_df = missing_df[missing_df["Missing (%)"] > 0].sort_values("Missing (%)", ascending=False)
+                if len(missing_df) > 0:
+                    st.dataframe(missing_df, use_container_width=True, hide_index=True)
+                else:
+                    st.success("No missing values found!")
+                    
+            with col2:
+                st.write("#### Outliers in Numerical Columns (%)")
+                st.markdown("*(Z-score > 3 or < -3)*")
+                num_cols_qa = df.select_dtypes(include=['int64', 'float64']).columns
+                outlier_data = []
+                for col in num_cols_qa:
+                    mean = df[col].mean()
+                    std = df[col].std()
+                    if std > 0:
+                        z_scores = (df[col] - mean) / std
+                        outliers = ((z_scores > 3) | (z_scores < -3)).sum()
+                        outlier_data.append({"Feature": col, "Outliers (%)": (outliers / len(df)) * 100})
+                if outlier_data:
+                    outlier_df = pd.DataFrame(outlier_data).sort_values("Outliers (%)", ascending=False)
+                    st.dataframe(outlier_df, use_container_width=True, hide_index=True)
+                else:
+                    st.success("No outliers found.")
         st.divider()
         
         st.write("### Interactive Graph Explorer")
@@ -587,6 +617,7 @@ elif page == "Patient Risk Analysis":
         if result:
             st.divider()
             st.subheader("Prediction Results")
+            st.info(f"Model Used for Prediction: **{result.get('model_type', 'Unknown')}**")
             
             col1, col2 = st.columns([1, 2])
             

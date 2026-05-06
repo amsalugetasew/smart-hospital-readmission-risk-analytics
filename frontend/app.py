@@ -240,7 +240,7 @@ elif page == "EDA":
         st.divider()
         
         st.write("### Interactive Graph Explorer")
-        chart_type = st.selectbox("Select Chart Type", ["Histogram", "Box Plot", "Scatter Plot", "Correlation Heatmap"])
+        chart_type = st.selectbox("Select Chart Type", ["Histogram", "Box Plot", "Scatter Plot", "Correlation Heatmap", "Bar Chart (Counts)"])
         
         num_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
         cat_cols = df.select_dtypes(include=['object']).columns.tolist()
@@ -251,6 +251,13 @@ elif page == "EDA":
             color_col = st.selectbox("Select Color Grouping", ["None"] + all_cols, index=all_cols.index("Readmitted")+1 if "Readmitted" in all_cols else 0)
             color_arg = None if color_col == "None" else color_col
             fig = px.histogram(df, x=x_col, color=color_arg, barmode="overlay")
+            st.plotly_chart(fig, use_container_width=True)
+            
+        elif chart_type == "Bar Chart (Counts)":
+            x_col = st.selectbox("Select Categorical Feature to Count", cat_cols)
+            color_col = st.selectbox("Select Color Grouping", ["None"] + all_cols, index=all_cols.index("Readmitted")+1 if "Readmitted" in all_cols else 0)
+            color_arg = None if color_col == "None" else color_col
+            fig = px.histogram(df, x=x_col, color=color_arg, barmode="group", text_auto=True)
             st.plotly_chart(fig, use_container_width=True)
             
         elif chart_type == "Box Plot":
@@ -354,8 +361,38 @@ elif page == "Preprocessing":
                 st.session_state['preprocessing_complete'] = True
                 
                 st.success("Preprocessing completed and saved to session memory! You can now proceed to Model Training.")
-                st.write("Transformed data shape:", X_processed.shape)
-                st.dataframe(pd.DataFrame(X_processed[:5].toarray() if hasattr(X_processed, "toarray") else X_processed[:5], columns=feature_names).head())
+                
+                # Show Cleaned Dataset Dashboard
+                st.write("### Preprocessed Dataset Dashboard")
+                df_processed = pd.DataFrame(X_processed.toarray() if hasattr(X_processed, "toarray") else X_processed, columns=feature_names)
+                
+                tab1, tab2, tab3 = st.tabs(["Data Head & Tail", "Data Quality", "Outliers Analysis"])
+                
+                with tab1:
+                    st.write("**Head (First 5 Rows)**")
+                    st.dataframe(df_processed.head())
+                    st.write("**Tail (Last 5 Rows)**")
+                    st.dataframe(df_processed.tail())
+                    
+                with tab2:
+                    st.write(f"**Shape:** {df_processed.shape[0]} rows, {df_processed.shape[1]} features")
+                    missing_pct = (df_processed.isna().sum().sum() / (df_processed.shape[0] * df_processed.shape[1])) * 100
+                    st.metric("Missing Value Percentage (After Imputation)", f"{missing_pct:.2f}%")
+                    if missing_pct == 0:
+                        st.info("All missing values were successfully handled!")
+                        
+                with tab3:
+                    st.write("Outliers detected in scaled numerical features (Z-score > 3 or < -3):")
+                    # Since numerical features are first, we can check them
+                    num_outliers = {}
+                    for col in numerical_cols:
+                        if col in df_processed.columns:
+                            # If scaled with StandardScaler, outliers are absolute values > 3
+                            outlier_count = ((df_processed[col] > 3) | (df_processed[col] < -3)).sum()
+                            outlier_pct = (outlier_count / len(df_processed)) * 100
+                            num_outliers[col] = f"{outlier_pct:.2f}%"
+                    
+                    st.json(num_outliers)
                 
     except Exception as e:
         st.error(f"Error during preprocessing: {e}")
@@ -426,9 +463,18 @@ elif page == "Model Training":
                         if response.status_code == 200:
                             st.success("Model trained successfully and backend API reloaded with new model!")
                         else:
-                            st.warning("Model trained successfully, but backend API failed to reload.")
+                            st.warning("Model trained successfully, but backend API failed to reload (did you restart the backend server?).")
                     except Exception as req_e:
                         st.warning(f"Model trained, but could not connect to backend API to reload: {req_e}")
+                    
+                    # Display metrics
+                    st.write("### Model Evaluation Results")
+                    metric_col1, metric_col2, metric_col3, metric_col4, metric_col5 = st.columns(5)
+                    metric_col1.metric("Accuracy", f"{metrics['accuracy']:.1%}")
+                    metric_col2.metric("Precision", f"{metrics['precision']:.1%}")
+                    metric_col3.metric("Recall", f"{metrics['recall']:.1%}")
+                    metric_col4.metric("F1 Score", f"{metrics['f1_score']:.1%}")
+                    metric_col5.metric("ROC AUC", f"{metrics['roc_auc']:.2f}")
                     
                 except Exception as e:
                     st.error(f"Error during training: {e}")

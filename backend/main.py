@@ -56,5 +56,16 @@ def get_analytics():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/reload-model")
+def reload_model():
+    """Reload the ML models from disk."""
+    try:
+        predictor.load_models()
+        if predictor.model is None:
+            raise HTTPException(status_code=500, detail="Failed to load models.")
+        return {"status": "success", "message": "Models reloaded successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reloading models: {str(e)}")
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

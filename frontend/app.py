@@ -161,8 +161,8 @@ with st.sidebar:
     st.markdown('<div style="text-align: left; margin-bottom: 0px;"><h2>🏥 Hospital Readmission</h2></div>', unsafe_allow_html=True)
     page = option_menu(
         menu_title=None,
-        options=["Overview", "Patient Risk Analysis", "Analytics Dashboard", "Model Performance"],
-        icons=["house", "activity", "graph-up", "speedometer2"],
+        options=["Overview", "EDA", "Preprocessing", "Model Training", "Patient Risk Analysis", "Analytics Dashboard", "Model Performance"],
+        icons=["house", "bar-chart", "gear", "cpu", "activity", "graph-up", "speedometer2"],
         menu_icon="cast",
         default_index=0,
         styles={
@@ -223,6 +223,165 @@ if page == "Overview":
         """)
     else:
         st.error("Could not connect to the backend API. Please ensure it is running.")
+
+elif page == "EDA":
+    st.title("Exploratory Data Analysis (EDA)")
+    st.markdown("Analyze the historical dataset used for training the model.")
+    try:
+        df = pd.read_csv("data/synthetic_hospital_data.csv")
+        st.write("### Dataset Preview")
+        st.dataframe(df.head())
+        
+        st.write("### Dataset Information")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Rows", df.shape[0])
+        col2.metric("Total Features", df.shape[1])
+        col3.metric("Missing Values", df.isna().sum().sum())
+        
+        st.divider()
+        st.write("### Target Variable Distribution")
+        fig = px.histogram(df, x="Readmitted", color="Readmitted", color_discrete_sequence=["#00cc96", "#ef553b"])
+        st.plotly_chart(fig, use_container_width=True)
+        
+        st.write("### Numerical Features Distribution")
+        num_cols = df.select_dtypes(include=['int64', 'float64']).columns
+        selected_col = st.selectbox("Select Feature", num_cols)
+        fig = px.histogram(df, x=selected_col, color="Readmitted", barmode="overlay")
+        st.plotly_chart(fig, use_container_width=True)
+        
+    except Exception as e:
+        st.error(f"Error loading dataset: {e}")
+
+elif page == "Preprocessing":
+    st.title("Data Preprocessing")
+    st.markdown("Prepare the raw data for model training.")
+    try:
+        df = pd.read_csv("data/synthetic_hospital_data.csv")
+        st.write("### Raw Data Summary")
+        st.dataframe(df.head(3))
+        
+        if st.button("Run Preprocessing Example", use_container_width=True):
+            with st.spinner("Applying transformations..."):
+                from sklearn.preprocessing import StandardScaler, OneHotEncoder
+                from sklearn.compose import ColumnTransformer
+                
+                # Define features and target
+                X = df.drop('Readmitted', axis=1)
+                
+                numerical_cols = X.select_dtypes(include=['int64', 'float64']).columns.tolist()
+                categorical_cols = X.select_dtypes(include=['object']).columns.tolist()
+                
+                st.write("#### Numerical Features", numerical_cols)
+                st.write("#### Categorical Features", categorical_cols)
+                
+                # Create preprocessor
+                numeric_transformer = StandardScaler()
+                categorical_transformer = OneHotEncoder(handle_unknown='ignore')
+                
+                preprocessor = ColumnTransformer(
+                    transformers=[
+                        ('num', numeric_transformer, numerical_cols),
+                        ('cat', categorical_transformer, categorical_cols)
+                    ])
+                
+                X_processed = preprocessor.fit_transform(X)
+                
+                st.success("Preprocessing completed successfully!")
+                st.write("Transformed data shape:", X_processed.shape)
+                st.info("Note: The actual preprocessor object is saved during the 'Model Training' step to ensure consistency.")
+                
+    except Exception as e:
+        st.error(f"Error during preprocessing: {e}")
+
+elif page == "Model Training":
+    st.title("Automated Model Training")
+    st.markdown("Train the Random Forest model dynamically and update the API.")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        n_estimators = st.slider("Number of Trees (n_estimators)", 50, 300, 100, 50)
+    with col2:
+        max_depth = st.slider("Maximum Depth (max_depth)", 5, 50, 20, 5)
+        
+    if st.button("Train Model", type="primary", use_container_width=True):
+        with st.spinner("Training model... This may take a moment."):
+            try:
+                from sklearn.ensemble import RandomForestClassifier
+                from sklearn.model_selection import train_test_split
+                from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+                from sklearn.preprocessing import StandardScaler, OneHotEncoder, LabelEncoder
+                from sklearn.compose import ColumnTransformer
+                import joblib
+                import requests
+                
+                # Load data
+                df = pd.read_csv("data/synthetic_hospital_data.csv")
+                X = df.drop('Readmitted', axis=1)
+                y = df['Readmitted']
+                
+                # Preprocess target
+                le = LabelEncoder()
+                y_encoded = le.fit_transform(y)
+                
+                # Preprocess features
+                numerical_cols = X.select_dtypes(include=['int64', 'float64']).columns.tolist()
+                categorical_cols = X.select_dtypes(include=['object']).columns.tolist()
+                
+                numeric_transformer = StandardScaler()
+                categorical_transformer = OneHotEncoder(handle_unknown='ignore')
+                preprocessor = ColumnTransformer(
+                    transformers=[
+                        ('num', numeric_transformer, numerical_cols),
+                        ('cat', categorical_transformer, categorical_cols)
+                    ])
+                
+                # Split and transform
+                X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42)
+                X_train_processed = preprocessor.fit_transform(X_train)
+                X_test_processed = preprocessor.transform(X_test)
+                
+                # Train model
+                model = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, random_state=42)
+                model.fit(X_train_processed, y_train)
+                
+                # Evaluate
+                y_pred = model.predict(X_test_processed)
+                y_prob = model.predict_proba(X_test_processed)[:, 1]
+                
+                metrics = {
+                    "accuracy": accuracy_score(y_test, y_pred),
+                    "precision": precision_score(y_test, y_pred),
+                    "recall": recall_score(y_test, y_pred),
+                    "f1_score": f1_score(y_test, y_pred),
+                    "roc_auc": roc_auc_score(y_test, y_prob)
+                }
+                
+                # Extract feature names
+                cat_encoder = preprocessor.named_transformers_['cat']
+                cat_feature_names = cat_encoder.get_feature_names_out(categorical_cols).tolist()
+                feature_names = numerical_cols + cat_feature_names
+                
+                # Save artifacts
+                joblib.dump(model, "models/random_forest_model.joblib")
+                joblib.dump(preprocessor, "models/preprocessor.joblib")
+                joblib.dump(le, "models/label_encoder.joblib")
+                with open("models/feature_names.json", "w") as f:
+                    json.dump(feature_names, f)
+                with open("models/metrics.json", "w") as f:
+                    json.dump(metrics, f)
+                    
+                # Reload model in backend
+                try:
+                    response = requests.post(f"{API_URL}/reload-model")
+                    if response.status_code == 200:
+                        st.success("Model trained successfully and backend API reloaded with new model!")
+                    else:
+                        st.warning("Model trained successfully, but backend API failed to reload.")
+                except Exception as req_e:
+                    st.warning(f"Model trained, but could not connect to backend API to reload: {req_e}")
+                
+            except Exception as e:
+                st.error(f"Error during training: {e}")
 
 elif page == "Patient Risk Analysis":
     st.title("Patient Risk Prediction")

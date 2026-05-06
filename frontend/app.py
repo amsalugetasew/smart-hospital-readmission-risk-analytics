@@ -419,18 +419,37 @@ elif page == "Model Training":
         st.divider()
         st.write("### Model Configuration")
         
+        test_size_pct = st.slider("Test Set Size (%)", min_value=10, max_value=50, value=20, step=5) / 100.0
         model_choice = st.selectbox("Select Machine Learning Algorithm", ["Random Forest", "Logistic Regression", "Decision Tree", "XGBoost"])
         
-        if model_choice in ["Random Forest", "XGBoost"]:
+        if model_choice == "Random Forest":
             col1, col2 = st.columns(2)
             with col1:
-                n_estimators = st.slider("Number of Trees (n_estimators)", 50, 300, 100, 50)
+                n_estimators = st.slider("Number of Trees", 50, 300, 100, 50)
+                min_samples_split = st.slider("Min Samples Split", 2, 20, 2)
             with col2:
-                max_depth = st.slider("Maximum Depth (max_depth)", 3, 50, 10, 1)
+                max_depth = st.slider("Maximum Depth", 3, 50, 10, 1)
+                min_samples_leaf = st.slider("Min Samples Leaf", 1, 20, 1)
+        elif model_choice == "XGBoost":
+            col1, col2 = st.columns(2)
+            with col1:
+                n_estimators = st.slider("Number of Trees", 50, 300, 100, 50)
+                learning_rate = st.select_slider("Learning Rate", options=[0.01, 0.05, 0.1, 0.2, 0.3], value=0.1)
+            with col2:
+                max_depth = st.slider("Maximum Depth", 3, 50, 10, 1)
         elif model_choice == "Decision Tree":
-            max_depth = st.slider("Maximum Depth (max_depth)", 3, 50, 10, 1)
+            col1, col2 = st.columns(2)
+            with col1:
+                max_depth = st.slider("Maximum Depth", 3, 50, 10, 1)
+                criterion = st.selectbox("Criterion", ["gini", "entropy"])
+            with col2:
+                min_samples_split = st.slider("Min Samples Split", 2, 20, 2)
         elif model_choice == "Logistic Regression":
-            C_val = st.select_slider("Inverse of Regularization Strength (C)", options=[0.01, 0.1, 1.0, 10.0, 100.0], value=1.0)
+            col1, col2 = st.columns(2)
+            with col1:
+                C_val = st.select_slider("Inverse of Regularization Strength (C)", options=[0.01, 0.1, 1.0, 10.0, 100.0], value=1.0)
+            with col2:
+                solver = st.selectbox("Solver", ["lbfgs", "liblinear", "saga"])
             
         if st.button("Train Model", type="primary", use_container_width=True):
             with st.spinner(f"Training {model_choice} model... This may take a moment."):
@@ -450,17 +469,17 @@ elif page == "Model Training":
                     le = st.session_state['label_encoder']
                     
                     # Split data
-                    X_train, X_test, y_train, y_test = train_test_split(X_processed, y_encoded, test_size=0.2, random_state=42)
+                    X_train, X_test, y_train, y_test = train_test_split(X_processed, y_encoded, test_size=test_size_pct, random_state=42)
                     
                     # Train model
                     if model_choice == "Random Forest":
-                        model = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, random_state=42)
+                        model = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, min_samples_split=min_samples_split, min_samples_leaf=min_samples_leaf, random_state=42)
                     elif model_choice == "Logistic Regression":
-                        model = LogisticRegression(C=C_val, random_state=42, max_iter=1000)
+                        model = LogisticRegression(C=C_val, solver=solver, random_state=42, max_iter=1000)
                     elif model_choice == "Decision Tree":
-                        model = DecisionTreeClassifier(max_depth=max_depth, random_state=42)
+                        model = DecisionTreeClassifier(max_depth=max_depth, criterion=criterion, min_samples_split=min_samples_split, random_state=42)
                     elif model_choice == "XGBoost":
-                        model = XGBClassifier(n_estimators=n_estimators, max_depth=max_depth, random_state=42, use_label_encoder=False, eval_metric='logloss')
+                        model = XGBClassifier(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, random_state=42, use_label_encoder=False, eval_metric='logloss')
                         
                     model.fit(X_train, y_train)
                     

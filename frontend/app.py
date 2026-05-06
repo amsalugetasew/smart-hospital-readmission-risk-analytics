@@ -6,6 +6,23 @@ import plotly.express as px
 import plotly.graph_objects as go
 import json
 from streamlit_option_menu import option_menu
+import os
+import subprocess
+import time
+import socket
+
+@st.cache_resource
+def start_backend():
+    def is_port_in_use(port):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            return s.connect_ex(('127.0.0.1', port)) == 0
+            
+    if not is_port_in_use(8000):
+        print("Starting backend server...")
+        subprocess.Popen(["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"])
+        time.sleep(3) # Wait for server to start
+
+start_backend()
 
 # Configure page
 st.set_page_config(
@@ -120,8 +137,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # API URL
-import os
-API_URL = os.getenv("API_URL", "http://localhost:8000")
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
 
 def get_analytics():
     try:

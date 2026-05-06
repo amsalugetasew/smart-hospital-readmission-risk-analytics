@@ -406,34 +406,62 @@ elif page == "Model Training":
     else:
         st.info("✅ Preprocessed dataset loaded from session memory.")
         
-        col1, col2 = st.columns(2)
-        with col1:
-            n_estimators = st.slider("Number of Trees (n_estimators)", 50, 300, 100, 50)
-        with col2:
-            max_depth = st.slider("Maximum Depth (max_depth)", 5, 50, 20, 5)
+        # Display dataset preview
+        X_processed = st.session_state['X_processed']
+        feature_names = st.session_state['feature_names']
+        
+        st.write("### Data Overview")
+        st.write(f"**Shape of Training Data:** {X_processed.shape[0]} rows, {X_processed.shape[1]} features")
+        df_preview = pd.DataFrame(X_processed[:5].toarray() if hasattr(X_processed, "toarray") else X_processed[:5], columns=feature_names)
+        st.write("**Preprocessed Data Head:**")
+        st.dataframe(df_preview)
+        
+        st.divider()
+        st.write("### Model Configuration")
+        
+        model_choice = st.selectbox("Select Machine Learning Algorithm", ["Random Forest", "Logistic Regression", "Decision Tree", "XGBoost"])
+        
+        if model_choice in ["Random Forest", "XGBoost"]:
+            col1, col2 = st.columns(2)
+            with col1:
+                n_estimators = st.slider("Number of Trees (n_estimators)", 50, 300, 100, 50)
+            with col2:
+                max_depth = st.slider("Maximum Depth (max_depth)", 3, 50, 10, 1)
+        elif model_choice == "Decision Tree":
+            max_depth = st.slider("Maximum Depth (max_depth)", 3, 50, 10, 1)
+        elif model_choice == "Logistic Regression":
+            C_val = st.select_slider("Inverse of Regularization Strength (C)", options=[0.01, 0.1, 1.0, 10.0, 100.0], value=1.0)
             
         if st.button("Train Model", type="primary", use_container_width=True):
-            with st.spinner("Training model... This may take a moment."):
+            with st.spinner(f"Training {model_choice} model... This may take a moment."):
                 try:
                     from sklearn.ensemble import RandomForestClassifier
+                    from sklearn.linear_model import LogisticRegression
+                    from sklearn.tree import DecisionTreeClassifier
+                    from xgboost import XGBClassifier
                     from sklearn.model_selection import train_test_split
                     from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
                     import joblib
                     import requests
                     import json
                     
-                    # Load from session state
-                    X_processed = st.session_state['X_processed']
                     y_encoded = st.session_state['y_encoded']
                     preprocessor = st.session_state['preprocessor']
                     le = st.session_state['label_encoder']
-                    feature_names = st.session_state['feature_names']
                     
                     # Split data
                     X_train, X_test, y_train, y_test = train_test_split(X_processed, y_encoded, test_size=0.2, random_state=42)
                     
                     # Train model
-                    model = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, random_state=42)
+                    if model_choice == "Random Forest":
+                        model = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, random_state=42)
+                    elif model_choice == "Logistic Regression":
+                        model = LogisticRegression(C=C_val, random_state=42, max_iter=1000)
+                    elif model_choice == "Decision Tree":
+                        model = DecisionTreeClassifier(max_depth=max_depth, random_state=42)
+                    elif model_choice == "XGBoost":
+                        model = XGBClassifier(n_estimators=n_estimators, max_depth=max_depth, random_state=42, use_label_encoder=False, eval_metric='logloss')
+                        
                     model.fit(X_train, y_train)
                     
                     # Evaluate
@@ -449,6 +477,7 @@ elif page == "Model Training":
                     }
                     
                     # Save artifacts to disk
+                    # Keep same filename for simplicity in the backend
                     joblib.dump(model, "models/random_forest_model.joblib")
                     joblib.dump(preprocessor, "models/preprocessor.joblib")
                     joblib.dump(le, "models/label_encoder.joblib")
@@ -461,9 +490,9 @@ elif page == "Model Training":
                     try:
                         response = requests.post(f"{API_URL}/reload-model")
                         if response.status_code == 200:
-                            st.success("Model trained successfully and backend API reloaded with new model!")
+                            st.success(f"{model_choice} trained successfully and backend API reloaded with new model!")
                         else:
-                            st.warning("Model trained successfully, but backend API failed to reload (did you restart the backend server?).")
+                            st.warning(f"{model_choice} trained successfully, but backend API failed to reload (did you restart the backend server?).")
                     except Exception as req_e:
                         st.warning(f"Model trained, but could not connect to backend API to reload: {req_e}")
                     

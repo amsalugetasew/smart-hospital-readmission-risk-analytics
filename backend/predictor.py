@@ -25,8 +25,11 @@ class HealthcarePredictor:
             with open("models/metrics.json", "r") as f:
                 self.metrics = json.load(f)
                 
-            # Initialize TreeExplainer for SHAP
-            self.explainer = shap.TreeExplainer(self.model)
+            # Initialize TreeExplainer for SHAP if model is tree-based
+            if type(self.model).__name__ in ['RandomForestClassifier', 'DecisionTreeClassifier', 'XGBClassifier']:
+                self.explainer = shap.TreeExplainer(self.model)
+            else:
+                self.explainer = None
         except Exception as e:
             print(f"Error loading models: {e}")
 
@@ -48,22 +51,30 @@ class HealthcarePredictor:
         else:
             risk_category = "High Risk"
             
-        # SHAP Values
-        shap_values = self.explainer.shap_values(X_processed)
-        # SHAP for RandomForest might return a list [class_0_shap, class_1_shap]
-        if isinstance(shap_values, list):
-            shap_values = shap_values[1][0]
-        else:
-            # If shape is 3D (e.g. from new shap versions for classification)
-            if len(shap_values.shape) == 3:
-                shap_values = shap_values[0, :, 1]
-            else:
-                shap_values = shap_values[0]
-                
-        # Combine feature names with shap values
+        # SHAP Values or Coefficients
         feature_importance = {}
-        for name, val in zip(self.feature_names, shap_values):
-            feature_importance[name] = float(val)
+        if self.explainer:
+            shap_values = self.explainer.shap_values(X_processed)
+            # SHAP for RandomForest might return a list [class_0_shap, class_1_shap]
+            if isinstance(shap_values, list):
+                shap_values = shap_values[1][0]
+            else:
+                # If shape is 3D (e.g. from new shap versions for classification)
+                if len(shap_values.shape) == 3:
+                    shap_values = shap_values[0, :, 1]
+                else:
+                    shap_values = shap_values[0]
+                    
+            # Combine feature names with shap values
+            for name, val in zip(self.feature_names, shap_values):
+                feature_importance[name] = float(val)
+        else:
+            # Fallback for Logistic Regression (Coefficient * Feature Value)
+            if hasattr(self.model, 'coef_'):
+                X_dense = X_processed.toarray() if hasattr(X_processed, 'toarray') else X_processed
+                coefs = self.model.coef_[0]
+                for i, name in enumerate(self.feature_names):
+                    feature_importance[name] = float(coefs[i] * X_dense[0][i])
             
         # Sort by absolute magnitude
         feature_importance = dict(sorted(feature_importance.items(), key=lambda item: abs(item[1]), reverse=True)[:10])

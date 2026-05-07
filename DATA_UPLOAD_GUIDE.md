@@ -14,12 +14,12 @@ Your dataset must include these **14 required columns**:
 | Column | Description | Valid Values |
 |--------|-------------|--------------|
 | `season` | Season of admission | Spring, Summer, Fall, Winter |
-| `gender` | Patient gender | Male, Female |
-| `region` | Geographic region | North, South, East, West |
-| `primary_diagnosis` | Primary diagnosis | Diabetes, Hypertension, Heart Disease, Pneumonia, COPD, etc. |
-| `treatment_type` | Type of treatment | Medical, Surgical, Interventional |
-| `insurance_type` | Insurance type | Private, Medicare, Medicaid, Self-Pay |
-| `discharge_disposition` | Discharge destination | Home, Home Health, Skilled Nursing, Rehab, Other |
+| `gender` | Patient gender | Male, Female (also accepts M, F, Man, Woman) |
+| `region` | Geographic region | North, South, East, West, Central, Northeast, Northwest, Southeast, Southwest, Midwest |
+| `primary_diagnosis` | Primary diagnosis | Diabetes, Hypertension, Heart Disease, Pneumonia, COPD, etc. (flexible) |
+| `treatment_type` | Type of treatment | Medical, Surgical, Interventional, Emergency, Outpatient, Inpatient |
+| `insurance_type` | Insurance type | Private, Medicare, Medicaid, Self-Pay, Commercial, Government, Uninsured |
+| `discharge_disposition` | Discharge destination | Home, Home Health, Skilled Nursing, Rehab, Other, Nursing Home, Hospice, Transfer |
 
 ### Numerical Features (7)
 | Column | Description | Valid Range |
@@ -56,23 +56,24 @@ Your dataset must include these **14 required columns**:
 3. **Ensure data quality** (no excessive missing values)
 
 ### Step 2: Upload in the App
-1. **Go to "Preprocessing" page**
-2. **Select "Upload Custom Dataset"**
+1. **Go to "Overview" page** (first page)
+2. **Click on "Upload Custom Dataset" tab**
 3. **Click "Choose a CSV or Excel file"**
 4. **Upload your file**
 
 ### Step 3: Validation & Processing
-1. **System validates** your dataset automatically
+1. **System validates** your dataset automatically (flexible validation)
 2. **View validation results** and dataset summary
-3. **Preview your data** to ensure it loaded correctly
-4. **Configure preprocessing** settings
-5. **Apply preprocessing** to prepare for training
+3. **Review any warnings** (won't prevent processing)
+4. **Save dataset** for use in other pages
+5. **Proceed to Preprocessing** to configure data processing
 
 ### Step 4: Train Your Model
-1. **Go to "Model Training" page**
-2. **Select your algorithm** and parameters
-3. **Train the model** on your data
-4. **Evaluate performance** metrics
+1. **Go to "Preprocessing" page** to configure data processing
+2. **Go to "Model Training" page** to train your model
+3. **Select your algorithm** and parameters
+4. **Train the model** on your data
+5. **Evaluate performance** metrics
 
 ---
 
@@ -84,9 +85,9 @@ Download and use this template: [`sample_dataset_template.csv`](sample_dataset_t
 season,age,gender,region,primary_diagnosis,comorbidities_count,length_of_stay,treatment_type,medications_count,followup_visits_last_year,prev_readmissions,insurance_type,discharge_disposition,readmission_risk_score,label
 Spring,65,Male,North,Diabetes,2,5,Medical,5,3,1,Private,Home,0.5,1
 Summer,45,Female,South,Hypertension,1,3,Surgical,3,2,0,Medicare,Rehab,0.3,0
-Fall,78,Male,East,Heart Disease,3,7,Medical,8,4,2,Medicaid,Home,0.8,1
+Fall,78,Male,Central,Heart Disease,3,7,Medical,8,4,2,Medicaid,Home,0.8,1
 Winter,52,Female,West,Pneumonia,1,4,Medical,4,1,0,Private,Home Health,0.4,0
-Spring,69,Male,North,COPD,2,6,Medical,6,3,1,Medicare,Skilled Nursing,0.6,1
+Spring,69,Male,Northeast,COPD,2,6,Medical,6,3,1,Medicare,Skilled Nursing,0.6,1
 ```
 
 ---

@@ -1,6 +1,11 @@
 season,age,gender,region,primary_diagnosis,comorbidities_count,length_of_stay,treatment_type,medications_count,followup_visits_last_year,prev_readmissions,insurance_type,discharge_disposition,readmission_risk_score,label
 Spring,65,Male,North,Diabetes,2,5,Medical,5,3,1,Private,Home,0.5,1
 Summer,45,Female,South,Hypertension,1,3,Surgical,3,2,0,Medicare,Rehab,0.3,0
-Fall,78,Male,East,Heart Disease,3,7,Medical,8,4,2,Medicaid,Home,0.8,1
+Fall,78,Male,Central,Heart Disease,3,7,Medical,8,4,2,Medicaid,Home,0.8,1
 Winter,52,Female,West,Pneumonia,1,4,Medical,4,1,0,Private,Home Health,0.4,0
-Spring,69,Male,North,COPD,2,6,Medical,6,3,1,Medicare,Skilled Nursing,0.6,1
+Spring,69,Male,Northeast,COPD,2,6,Medical,6,3,1,Medicare,Skilled Nursing,0.6,1
+Summer,34,Female,Southeast,Asthma,1,2,Emergency,2,1,0,Commercial,Home,0.2,0
+Fall,82,Male,Midwest,Stroke,4,10,Interventional,12,5,3,Medicare,Transfer,0.9,1
+Winter,58,Female,Southwest,Cancer,3,8,Surgical,9,2,1,Private,Hospice,0.7,1
+Spring,41,Male,Northwest,Infection,1,3,Medical,4,1,0,Medicaid,Home Health,0.3,0
+Summer,73,Female,Central,Kidney Disease,2,6,Medical,7,4,2,Medicare,Skilled Nursing,0.6,1

@@ -201,6 +201,114 @@ DATASET_PATH = "data/hospital_readmission_dataset.csv"
 if page == "Overview":
     st.title("Hospital Readmission Overview")
     
+    # Data Upload Section
+    st.subheader("📤 Data Management")
+    
+    # Create tabs for default dataset and custom upload
+    tab1, tab2 = st.tabs(["📊 Default Dataset", "📁 Upload Custom Dataset"])
+    
+    with tab1:
+        st.info("Using the default hospital readmission dataset with 8,000 patient records.")
+        
+    with tab2:
+        st.markdown("Upload your own CSV or Excel file to train models on your hospital's data.")
+        
+        uploaded_file = st.file_uploader(
+            "Choose a CSV or Excel file",
+            type=['csv', 'xlsx', 'xls'],
+            help="File must contain the 14 required columns. See DATA_UPLOAD_GUIDE.md for details."
+        )
+        
+        if uploaded_file is not None:
+            # Load and validate uploaded file
+            from utils.data_upload import load_uploaded_file, validate_dataset_columns, standardize_dataset, get_dataset_summary, save_uploaded_dataset
+            
+            with st.spinner("Loading and validating your dataset..."):
+                try:
+                    # Load file
+                    df_uploaded = load_uploaded_file(uploaded_file)
+                    
+                    if df_uploaded is not None:
+                        # Validate dataset
+                        is_valid, message, validation_info = validate_dataset_columns(df_uploaded)
+                        
+                        if is_valid:
+                            st.success(f"✅ {message}")
+                            
+                            # Show validation warnings if any
+                            if 'warnings' in validation_info and validation_info['warnings']:
+                                with st.expander("⚠️ Data Validation Warnings", expanded=False):
+                                    for warning in validation_info['warnings']:
+                                        st.warning(warning)
+                                    st.info("These warnings won't prevent processing, but you may want to review your data.")
+                            
+                            # Standardize dataset
+                            df_clean = standardize_dataset(df_uploaded)
+                            
+                            # Get summary
+                            summary = get_dataset_summary(df_clean)
+                            
+                            # Display summary
+                            st.write("### 📋 Dataset Summary")
+                            col1, col2, col3, col4 = st.columns(4)
+                            col1.metric("Total Rows", f"{summary['total_rows']:,}")
+                            col2.metric("Total Columns", summary['total_columns'])
+                            col3.metric("Missing Values", summary['missing_values'])
+                            col4.metric("Duplicate Rows", summary['duplicate_rows'])
+                            
+                            # Show data preview
+                            with st.expander("👀 Data Preview", expanded=False):
+                                st.dataframe(df_clean.head(10))
+                            
+                            # Save dataset option
+                            if st.button("💾 Save Dataset for Training", type="primary"):
+                                saved_path = save_uploaded_dataset(df_clean, "uploaded_dataset.csv")
+                                if saved_path:
+                                    st.success(f"✅ Dataset saved successfully!")
+                                    st.info("You can now use this dataset in Preprocessing and Model Training pages.")
+                                    # Update the global dataset path
+                                    st.session_state['custom_dataset_path'] = saved_path
+                                    st.rerun()
+                        else:
+                            st.error(f"❌ {message}")
+                            
+                            # Show validation details
+                            with st.expander("🔍 Validation Details", expanded=True):
+                                st.write(f"**Required columns found:** {validation_info['required_columns_found']}/{validation_info['required_columns_total']}")
+                                if validation_info['missing_columns']:
+                                    st.write(f"**Missing columns:** {', '.join(validation_info['missing_columns'])}")
+                                if validation_info['extra_columns']:
+                                    st.write(f"**Extra columns:** {', '.join(validation_info['extra_columns'])}")
+                            
+                            # Show sample data format
+                            st.write("### 📋 Required Data Format")
+                            st.markdown("Your dataset must include these columns:")
+                            sample_data = {
+                                'season': ['Spring', 'Summer', 'Fall'],
+                                'age': [65, 45, 78],
+                                'gender': ['Male', 'Female', 'Male'],
+                                'region': ['North', 'South', 'Central'],
+                                'primary_diagnosis': ['Diabetes', 'Hypertension', 'Heart Disease'],
+                                'comorbidities_count': [2, 1, 3],
+                                'length_of_stay': [5, 3, 7],
+                                'treatment_type': ['Medical', 'Surgical', 'Medical'],
+                                'medications_count': [5, 3, 8],
+                                'followup_visits_last_year': [3, 2, 4],
+                                'prev_readmissions': [1, 0, 2],
+                                'insurance_type': ['Private', 'Medicare', 'Medicaid'],
+                                'discharge_disposition': ['Home', 'Rehab', 'Home'],
+                                'readmission_risk_score': [0.5, 0.3, 0.8],
+                                'label': [1, 0, 1]  # Optional: 0=Not Readmitted, 1=Readmitted
+                            }
+                            st.dataframe(pd.DataFrame(sample_data))
+                            
+                except Exception as e:
+                    st.error(f"Error processing file: {str(e)}")
+        else:
+            st.info("👆 Please upload a CSV or Excel file to continue with custom data")
+    
+    st.divider()
+    
     analytics = get_analytics()
     if analytics:
         col1, col2, col3, col4 = st.columns(4)
@@ -448,123 +556,22 @@ elif page == "Preprocessing":
     st.title("Interactive Data Preprocessing")
     st.markdown("Configure how to handle missing values, scale numerical features, and encode categorical variables.")
     
-    # Data Source Selection
-    st.subheader("📁 Data Source Selection")
-    
-    data_source = st.radio(
-        "Choose your data source:",
-        ["Use Default Dataset", "Upload Custom Dataset"],
-        horizontal=True
-    )
-    
-    df = None
-    dataset_path = DATASET_PATH
-    
-    if data_source == "Upload Custom Dataset":
-        st.markdown("### 📤 Upload Your Dataset")
-        
-        # File upload
-        uploaded_file = st.file_uploader(
-            "Choose a CSV or Excel file",
-            type=['csv', 'xlsx', 'xls'],
-            help="Upload a dataset with the required columns for hospital readmission prediction"
-        )
-        
-        if uploaded_file is not None:
-            # Load and validate uploaded file
-            from utils.data_upload import load_uploaded_file, validate_dataset_columns, standardize_dataset, get_dataset_summary, save_uploaded_dataset
-            
-            with st.spinner("Loading and validating your dataset..."):
-                df_uploaded = load_uploaded_file(uploaded_file)
-                
-                if df_uploaded is not None:
-                    # Show basic info
-                    st.success(f"✅ File loaded successfully! ({len(df_uploaded)} rows, {len(df_uploaded.columns)} columns)")
-                    
-                    # Validate dataset
-                    is_valid, message, validation_info = validate_dataset_columns(df_uploaded)
-                    
-                    if is_valid:
-                        st.success(f"✅ {message}")
-                        
-                        # Standardize dataset
-                        df_standardized = standardize_dataset(df_uploaded)
-                        
-                        # Save to data folder
-                        saved_path = save_uploaded_dataset(df_standardized, f"uploaded_{uploaded_file.name.split('.')[0]}.csv")
-                        if saved_path:
-                            dataset_path = saved_path
-                            df = df_standardized
-                            st.info(f"📁 Dataset saved as: {saved_path}")
-                        
-                        # Show dataset summary
-                        with st.expander("📊 Dataset Summary", expanded=True):
-                            summary = get_dataset_summary(df_standardized)
-                            
-                            col1, col2, col3, col4 = st.columns(4)
-                            col1.metric("Total Rows", summary['total_rows'])
-                            col2.metric("Total Columns", summary['total_columns'])
-                            col3.metric("Missing Values", summary['missing_values'])
-                            col4.metric("Duplicate Rows", summary['duplicate_rows'])
-                            
-                            if 'target_distribution' in summary:
-                                st.write("**Target Distribution:**")
-                                target_dist = summary['target_distribution']
-                                if isinstance(target_dist, dict):
-                                    for key, value in target_dist.items():
-                                        st.write(f"- {key}: {value} ({value/summary['total_rows']*100:.1f}%)")
-                        
-                        # Show sample data
-                        with st.expander("👀 Preview Data (First 10 rows)", expanded=False):
-                            st.dataframe(df_standardized.head(10))
-                    
-                    else:
-                        st.error(f"❌ {message}")
-                        st.write("**Validation Details:**")
-                        st.json(validation_info)
-                        
-                        # Show required columns
-                        st.write("**Required Columns:**")
-                        required_cols = [
-                            'season', 'age', 'gender', 'region', 'primary_diagnosis',
-                            'comorbidities_count', 'length_of_stay', 'treatment_type',
-                            'medications_count', 'followup_visits_last_year', 'prev_readmissions',
-                            'insurance_type', 'discharge_disposition', 'readmission_risk_score'
-                        ]
-                        st.write(", ".join(required_cols))
-                        
-                        # Show sample format
-                        with st.expander("📋 Sample Data Format", expanded=False):
-                            sample_data = {
-                                'season': ['Spring', 'Summer', 'Fall'],
-                                'age': [65, 45, 78],
-                                'gender': ['Male', 'Female', 'Male'],
-                                'region': ['North', 'South', 'East'],
-                                'primary_diagnosis': ['Diabetes', 'Hypertension', 'Heart Disease'],
-                                'comorbidities_count': [2, 1, 3],
-                                'length_of_stay': [5, 3, 7],
-                                'treatment_type': ['Medical', 'Surgical', 'Medical'],
-                                'medications_count': [5, 3, 8],
-                                'followup_visits_last_year': [3, 2, 4],
-                                'prev_readmissions': [1, 0, 2],
-                                'insurance_type': ['Private', 'Medicare', 'Medicaid'],
-                                'discharge_disposition': ['Home', 'Rehab', 'Home'],
-                                'readmission_risk_score': [0.5, 0.3, 0.8],
-                                'label': [1, 0, 1]  # Optional: 0=Not Readmitted, 1=Readmitted
-                            }
-                            st.dataframe(pd.DataFrame(sample_data))
-        else:
-            st.info("👆 Please upload a CSV or Excel file to continue with custom data")
-            st.stop()
-    
+    # Check for custom dataset from Overview page
+    if 'custom_dataset_path' in st.session_state:
+        dataset_path = st.session_state['custom_dataset_path']
+        st.info(f"📁 Using uploaded dataset: {dataset_path}")
     else:
-        # Use default dataset
-        try:
-            df = pd.read_csv(dataset_path)
-            st.success(f"✅ Using default dataset: {dataset_path}")
-        except Exception as e:
-            st.error(f"Error loading default dataset: {e}")
-            st.stop()
+        dataset_path = DATASET_PATH
+        st.info("📊 Using default dataset")
+    
+    # Load dataset
+    try:
+        df = pd.read_csv(dataset_path)
+        st.success(f"✅ Dataset loaded successfully: {len(df)} rows, {len(df.columns)} columns")
+    except Exception as e:
+        st.error(f"Error loading dataset: {e}")
+        st.info("💡 Please upload a dataset on the Overview page first.")
+        st.stop()
     
     if df is not None:
         st.divider()
@@ -678,13 +685,20 @@ elif page == "Model Training":
     
     # Check if we have a dataset to work with
     dataset_available = False
+    dataset_path = DATASET_PATH
     
-    # Try to load from default dataset or check if preprocessing was done
+    # Check for custom dataset from Overview page
+    if 'custom_dataset_path' in st.session_state:
+        dataset_path = st.session_state['custom_dataset_path']
+        st.info(f"📁 Using uploaded dataset: {dataset_path}")
+    else:
+        st.info("📊 Using default dataset")
+    
+    # Try to load the dataset
     try:
-        # First, try to load the default dataset
-        df = pd.read_csv(DATASET_PATH)
+        df = pd.read_csv(dataset_path)
         dataset_available = True
-        st.info("✅ Dataset loaded successfully")
+        st.success("✅ Dataset loaded successfully")
         
         # Show dataset info
         st.write("### Dataset Overview")
@@ -697,7 +711,7 @@ elif page == "Model Training":
             col3.metric("Readmission Rate", f"{readmission_rate:.1%}")
         
     except Exception as e:
-        st.error(f"No dataset available. Please go to Preprocessing page first to load data.")
+        st.error(f"No dataset available. Please upload a dataset on the Overview page first.")
         dataset_available = False
     
     if dataset_available:
@@ -757,7 +771,7 @@ elif page == "Model Training":
                     import os
                     
                     # Load and preprocess data
-                    df_for_training = pd.read_csv(DATASET_PATH)
+                    df_for_training = pd.read_csv(dataset_path)
                     X_train, X_test, y_train, y_test, feature_names, preprocessor = preprocess_data(df_for_training)
                     
                     # Load the label encoder that was created during preprocessing
@@ -1053,8 +1067,24 @@ elif page == "Model Performance":
         model = joblib.load("models/random_forest_model.joblib")
         with open("models/feature_names.json", "r") as f:
             feature_names = json.load(f)
-            
-        importances = model.feature_importances_
+        
+        # Handle different model types for feature importance
+        model_type = type(model).__name__
+        
+        if hasattr(model, 'feature_importances_'):
+            # Tree-based models (Random Forest, Decision Tree, XGBoost)
+            importances = model.feature_importances_
+            importance_type = "Feature Importance"
+        elif hasattr(model, 'coef_'):
+            # Linear models (Logistic Regression)
+            importances = np.abs(model.coef_[0])  # Use absolute values of coefficients
+            importance_type = "Coefficient Magnitude"
+        else:
+            # Fallback for other models
+            st.warning(f"Feature importance not available for {model_type}")
+            importances = np.ones(len(feature_names))  # Equal importance as fallback
+            importance_type = "Equal Weight (Fallback)"
+        
         indices = np.argsort(importances)[-15:]
         
         importance_pct = importances[indices] * 100
@@ -1073,7 +1103,7 @@ elif page == "Model Performance":
             textposition='auto'
         ))
         fig.update_layout(
-            title="Top 15 Most Important Features", 
+            title=f"Top 15 Most Important Features ({importance_type})", 
             height=600,
             xaxis_title="Importance (%)",
             yaxis_title="Feature"

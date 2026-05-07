@@ -88,13 +88,23 @@ class EmbeddedPredictor:
             else:
                 risk_category = "High"
             
-            # Get feature importance (simplified)
+            # Get feature importance (handle different model types)
             feature_importance = {}
             if hasattr(self.model, 'feature_importances_') and self.feature_names:
+                # Tree-based models (Random Forest, Decision Tree, XGBoost)
                 importances = self.model.feature_importances_
                 for i, importance in enumerate(importances):
                     if i < len(self.feature_names):
                         feature_importance[self.feature_names[i]] = float(importance)
+            elif hasattr(self.model, 'coef_') and self.feature_names:
+                # Linear models (Logistic Regression)
+                importances = np.abs(self.model.coef_[0])  # Use absolute values of coefficients
+                for i, importance in enumerate(importances):
+                    if i < len(self.feature_names):
+                        feature_importance[self.feature_names[i]] = float(importance)
+            else:
+                # Fallback for other models
+                feature_importance = {"Feature importance unavailable": 0.0}
             
             # Sort by importance
             feature_importance = dict(sorted(feature_importance.items(), 

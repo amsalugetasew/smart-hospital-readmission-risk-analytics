@@ -66,22 +66,27 @@ def validate_dataset_columns(df: pd.DataFrame) -> Tuple[bool, str, Dict[str, Any
                 if col == 'readmission_risk_score' and (df[col].min() < 0 or df[col].max() > 1):
                     return False, f"Readmission risk score should be between 0-1", validation_info
         
-        # Categorical columns validation
+        # Categorical columns validation (more flexible)
         categorical_validations = {
-            'gender': ['male', 'female', 'm', 'f'],
+            'gender': ['male', 'female', 'm', 'f', 'man', 'woman'],
             'season': ['spring', 'summer', 'fall', 'winter', 'autumn'],
-            'region': ['north', 'south', 'east', 'west'],
-            'treatment_type': ['medical', 'surgical', 'interventional'],
-            'insurance_type': ['private', 'medicare', 'medicaid', 'self-pay', 'self pay'],
-            'discharge_disposition': ['home', 'home health', 'skilled nursing', 'rehab', 'other', 'snf']
+            'region': ['north', 'south', 'east', 'west', 'central', 'northeast', 'northwest', 'southeast', 'southwest', 'midwest'],
+            'treatment_type': ['medical', 'surgical', 'interventional', 'emergency', 'outpatient', 'inpatient'],
+            'insurance_type': ['private', 'medicare', 'medicaid', 'self-pay', 'self pay', 'commercial', 'government', 'uninsured'],
+            'discharge_disposition': ['home', 'home health', 'skilled nursing', 'rehab', 'other', 'snf', 'nursing home', 'hospice', 'deceased', 'transfer']
         }
         
+        # Make validation more lenient - only warn about unusual values, don't fail
+        validation_warnings = []
         for col, valid_values in categorical_validations.items():
             if col in df.columns:
                 unique_values = df[col].str.lower().unique()
                 invalid_values = [v for v in unique_values if v not in valid_values and pd.notna(v)]
                 if invalid_values:
-                    return False, f"Invalid values in '{col}': {invalid_values}. Valid values: {valid_values}", validation_info
+                    validation_warnings.append(f"Unusual values in '{col}': {invalid_values}")
+        
+        # Add warnings to validation info but don't fail validation
+        validation_info['warnings'] = validation_warnings
         
         return True, "Dataset validation successful!", validation_info
         
@@ -97,19 +102,25 @@ def standardize_dataset(df: pd.DataFrame) -> pd.DataFrame:
     # Standardize column names (lowercase)
     df_clean.columns = df_clean.columns.str.lower().str.strip()
     
-    # Standardize categorical values
+    # Standardize categorical values (more comprehensive mappings)
     categorical_mappings = {
-        'gender': {'m': 'Male', 'f': 'Female', 'male': 'Male', 'female': 'Female'},
+        'gender': {'m': 'Male', 'f': 'Female', 'male': 'Male', 'female': 'Female', 
+                  'man': 'Male', 'woman': 'Female'},
         'season': {'spring': 'Spring', 'summer': 'Summer', 'fall': 'Fall', 
                   'winter': 'Winter', 'autumn': 'Fall'},
-        'region': {'north': 'North', 'south': 'South', 'east': 'East', 'west': 'West'},
+        'region': {'north': 'North', 'south': 'South', 'east': 'East', 'west': 'West',
+                  'central': 'Central', 'northeast': 'Northeast', 'northwest': 'Northwest',
+                  'southeast': 'Southeast', 'southwest': 'Southwest', 'midwest': 'Midwest'},
         'treatment_type': {'medical': 'Medical', 'surgical': 'Surgical', 
-                          'interventional': 'Interventional'},
+                          'interventional': 'Interventional', 'emergency': 'Emergency',
+                          'outpatient': 'Outpatient', 'inpatient': 'Inpatient'},
         'insurance_type': {'private': 'Private', 'medicare': 'Medicare', 
-                          'medicaid': 'Medicaid', 'self-pay': 'Self-Pay', 'self pay': 'Self-Pay'},
+                          'medicaid': 'Medicaid', 'self-pay': 'Self-Pay', 'self pay': 'Self-Pay',
+                          'commercial': 'Private', 'government': 'Medicare', 'uninsured': 'Self-Pay'},
         'discharge_disposition': {'home': 'Home', 'home health': 'Home Health', 
                                 'skilled nursing': 'Skilled Nursing', 'rehab': 'Rehab', 
-                                'other': 'Other', 'snf': 'Skilled Nursing'}
+                                'other': 'Other', 'snf': 'Skilled Nursing', 'nursing home': 'Skilled Nursing',
+                                'hospice': 'Other', 'deceased': 'Other', 'transfer': 'Other'}
     }
     
     for col, mapping in categorical_mappings.items():

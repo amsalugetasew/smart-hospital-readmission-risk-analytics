@@ -65,4 +65,4 @@ if __name__ == "__main__":
     else:
         print("\n❌ Please fix import errors before running the application.")
     
-    input("\nPress Enter to exit..
+    input("\nPress Enter to exit...")

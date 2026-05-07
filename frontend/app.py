@@ -79,6 +79,17 @@ API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
 if hasattr(st, 'secrets') and 'API_URL' in st.secrets:
     API_URL = st.secrets['API_URL']
 
+def check_backend_health():
+    """Check if backend is running and healthy"""
+    try:
+        response = requests.get(f"{API_URL}/health", timeout=3)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("status") == "healthy" and data.get("model_loaded", False)
+    except:
+        pass
+    return False
+
 def get_analytics():
     try:
         response = requests.get(f"{API_URL}/analytics", timeout=5)
@@ -118,17 +129,29 @@ def get_prediction(data):
         except Exception as e:
             st.error(f"❌ Both backend API and embedded model failed: {str(e)}")
             st.info("💡 Please ensure the model is trained: `python train_model.py`")
+            st.info(f"💡 Backend URL: {API_URL}")
+            st.info("💡 Try running: `uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload`")
             return None
     except requests.exceptions.Timeout:
         st.error("⏱️ Request timed out. The model might be taking too long to respond.")
         return None
     except Exception as e:
         st.error(f"❌ Unexpected error: {e}")
+        st.info(f"💡 Backend URL: {API_URL}")
         return None
 
 # Sidebar navigation
 with st.sidebar:
     st.markdown('<div style="text-align: left; margin-bottom: 0px;"><h2>🏥 Hospital Readmission</h2></div>', unsafe_allow_html=True)
+    
+    # Backend status indicator
+    backend_healthy = check_backend_health()
+    if backend_healthy:
+        st.success("🟢 Backend Connected")
+    else:
+        st.error("🔴 Backend Disconnected")
+        st.info(f"URL: {API_URL}")
+    
     page = option_menu(
         menu_title=None,
         options=["Overview", "EDA", "Preprocessing", "Model Training", "Patient Risk Analysis", "Analytics Dashboard", "Model Performance"],
@@ -623,13 +646,21 @@ elif page == "Model Training":
                         
                     # Reload model in backend
                     try:
-                        response = requests.post(f"{API_URL}/reload-model")
+                        response = requests.post(f"{API_URL}/reload-model", timeout=10)
                         if response.status_code == 200:
-                            st.success(f"{model_choice} trained successfully and backend API reloaded!")
+                            st.success(f"✅ {model_choice} trained successfully and backend API reloaded!")
                         else:
-                            st.warning(f"{model_choice} trained successfully, but backend API failed to reload.")
-                    except:
-                        st.warning("Model trained, but could not connect to backend API to reload.")
+                            st.warning(f"⚠️ {model_choice} trained successfully, but backend API failed to reload. Status: {response.status_code}")
+                            st.info("💡 The model files are saved. You can restart the backend to load the new model.")
+                    except requests.exceptions.ConnectionError:
+                        st.warning("⚠️ Model trained successfully, but could not connect to backend API to reload.")
+                        st.info("💡 The model files are saved. Start the backend to use the new model.")
+                    except requests.exceptions.Timeout:
+                        st.warning("⚠️ Model trained successfully, but backend reload timed out.")
+                        st.info("💡 The model files are saved. The backend may still be loading the model.")
+                    except Exception as e:
+                        st.warning(f"⚠️ Model trained successfully, but backend reload failed: {str(e)}")
+                        st.info("💡 The model files are saved. You can restart the backend to load the new model.")
                     
                     # Display metrics
                     st.write("### Model Evaluation Results")
@@ -648,6 +679,26 @@ elif page == "Model Training":
 elif page == "Patient Risk Analysis":
     st.title("Patient Risk Prediction")
     st.markdown("Enter patient details to predict their risk of hospital readmission within 30 days.")
+    
+    # Debug panel (expandable)
+    with st.expander("🔧 Debug Information", expanded=False):
+        st.write(f"**Backend URL:** {API_URL}")
+        backend_status = check_backend_health()
+        st.write(f"**Backend Status:** {'✅ Healthy' if backend_status else '❌ Unhealthy'}")
+        
+        if st.button("Test Backend Connection"):
+            with st.spinner("Testing connection..."):
+                try:
+                    health_response = requests.get(f"{API_URL}/health", timeout=3)
+                    st.write(f"Health endpoint: {health_response.status_code} - {health_response.json()}")
+                except Exception as e:
+                    st.error(f"Health endpoint error: {e}")
+                
+                try:
+                    analytics_response = requests.get(f"{API_URL}/analytics", timeout=3)
+                    st.write(f"Analytics endpoint: {analytics_response.status_code}")
+                except Exception as e:
+                    st.error(f"Analytics endpoint error: {e}")
     
     with st.form("prediction_form"):
         col1, col2, col3 = st.columns(3)

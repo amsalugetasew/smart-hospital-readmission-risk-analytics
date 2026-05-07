@@ -37,6 +37,8 @@ This platform helps healthcare professionals:
 
 ### 4. ⚙️ Data Preprocessing Pipeline
 - View raw dataset (8,000 patient records)
+- **📤 Upload custom CSV/Excel datasets**
+- **🔍 Automatic data validation and standardization**
 - Automatic handling of missing values
 - Feature scaling (StandardScaler for numerical features)
 - One-hot encoding (categorical features)

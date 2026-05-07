@@ -10,6 +10,12 @@ import os
 import subprocess
 import time
 import socket
+import sys
+
+# Add project root to Python path so utils module can be found
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 @st.cache_resource
 def start_backend():
@@ -442,8 +448,127 @@ elif page == "Preprocessing":
     st.title("Interactive Data Preprocessing")
     st.markdown("Configure how to handle missing values, scale numerical features, and encode categorical variables.")
     
-    try:
-        df = pd.read_csv(DATASET_PATH)
+    # Data Source Selection
+    st.subheader("📁 Data Source Selection")
+    
+    data_source = st.radio(
+        "Choose your data source:",
+        ["Use Default Dataset", "Upload Custom Dataset"],
+        horizontal=True
+    )
+    
+    df = None
+    dataset_path = DATASET_PATH
+    
+    if data_source == "Upload Custom Dataset":
+        st.markdown("### 📤 Upload Your Dataset")
+        
+        # File upload
+        uploaded_file = st.file_uploader(
+            "Choose a CSV or Excel file",
+            type=['csv', 'xlsx', 'xls'],
+            help="Upload a dataset with the required columns for hospital readmission prediction"
+        )
+        
+        if uploaded_file is not None:
+            # Load and validate uploaded file
+            from utils.data_upload import load_uploaded_file, validate_dataset_columns, standardize_dataset, get_dataset_summary, save_uploaded_dataset
+            
+            with st.spinner("Loading and validating your dataset..."):
+                df_uploaded = load_uploaded_file(uploaded_file)
+                
+                if df_uploaded is not None:
+                    # Show basic info
+                    st.success(f"✅ File loaded successfully! ({len(df_uploaded)} rows, {len(df_uploaded.columns)} columns)")
+                    
+                    # Validate dataset
+                    is_valid, message, validation_info = validate_dataset_columns(df_uploaded)
+                    
+                    if is_valid:
+                        st.success(f"✅ {message}")
+                        
+                        # Standardize dataset
+                        df_standardized = standardize_dataset(df_uploaded)
+                        
+                        # Save to data folder
+                        saved_path = save_uploaded_dataset(df_standardized, f"uploaded_{uploaded_file.name.split('.')[0]}.csv")
+                        if saved_path:
+                            dataset_path = saved_path
+                            df = df_standardized
+                            st.info(f"📁 Dataset saved as: {saved_path}")
+                        
+                        # Show dataset summary
+                        with st.expander("📊 Dataset Summary", expanded=True):
+                            summary = get_dataset_summary(df_standardized)
+                            
+                            col1, col2, col3, col4 = st.columns(4)
+                            col1.metric("Total Rows", summary['total_rows'])
+                            col2.metric("Total Columns", summary['total_columns'])
+                            col3.metric("Missing Values", summary['missing_values'])
+                            col4.metric("Duplicate Rows", summary['duplicate_rows'])
+                            
+                            if 'target_distribution' in summary:
+                                st.write("**Target Distribution:**")
+                                target_dist = summary['target_distribution']
+                                if isinstance(target_dist, dict):
+                                    for key, value in target_dist.items():
+                                        st.write(f"- {key}: {value} ({value/summary['total_rows']*100:.1f}%)")
+                        
+                        # Show sample data
+                        with st.expander("👀 Preview Data (First 10 rows)", expanded=False):
+                            st.dataframe(df_standardized.head(10))
+                    
+                    else:
+                        st.error(f"❌ {message}")
+                        st.write("**Validation Details:**")
+                        st.json(validation_info)
+                        
+                        # Show required columns
+                        st.write("**Required Columns:**")
+                        required_cols = [
+                            'season', 'age', 'gender', 'region', 'primary_diagnosis',
+                            'comorbidities_count', 'length_of_stay', 'treatment_type',
+                            'medications_count', 'followup_visits_last_year', 'prev_readmissions',
+                            'insurance_type', 'discharge_disposition', 'readmission_risk_score'
+                        ]
+                        st.write(", ".join(required_cols))
+                        
+                        # Show sample format
+                        with st.expander("📋 Sample Data Format", expanded=False):
+                            sample_data = {
+                                'season': ['Spring', 'Summer', 'Fall'],
+                                'age': [65, 45, 78],
+                                'gender': ['Male', 'Female', 'Male'],
+                                'region': ['North', 'South', 'East'],
+                                'primary_diagnosis': ['Diabetes', 'Hypertension', 'Heart Disease'],
+                                'comorbidities_count': [2, 1, 3],
+                                'length_of_stay': [5, 3, 7],
+                                'treatment_type': ['Medical', 'Surgical', 'Medical'],
+                                'medications_count': [5, 3, 8],
+                                'followup_visits_last_year': [3, 2, 4],
+                                'prev_readmissions': [1, 0, 2],
+                                'insurance_type': ['Private', 'Medicare', 'Medicaid'],
+                                'discharge_disposition': ['Home', 'Rehab', 'Home'],
+                                'readmission_risk_score': [0.5, 0.3, 0.8],
+                                'label': [1, 0, 1]  # Optional: 0=Not Readmitted, 1=Readmitted
+                            }
+                            st.dataframe(pd.DataFrame(sample_data))
+        else:
+            st.info("👆 Please upload a CSV or Excel file to continue with custom data")
+            st.stop()
+    
+    else:
+        # Use default dataset
+        try:
+            df = pd.read_csv(dataset_path)
+            st.success(f"✅ Using default dataset: {dataset_path}")
+        except Exception as e:
+            st.error(f"Error loading default dataset: {e}")
+            st.stop()
+    
+    if df is not None:
+        st.divider()
+        st.subheader("⚙️ Preprocessing Configuration")
         
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -457,108 +582,127 @@ elif page == "Preprocessing":
             
         if st.button("Apply & Confirm Preprocessing", type="primary", use_container_width=True):
             with st.spinner("Building pipeline and transforming data..."):
-                from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler, OneHotEncoder, LabelEncoder
-                from sklearn.impute import SimpleImputer
-                from sklearn.compose import ColumnTransformer
-                from sklearn.pipeline import Pipeline
-                
-                # Drop patient_id and admission_date
-                columns_to_drop = ['patient_id', 'admission_date']
-                df_clean = df.drop(columns=[col for col in columns_to_drop if col in df.columns])
-                
-                # Setup target
-                X = df_clean.drop('label', axis=1)
-                y = df_clean['label']
-                
-                numerical_cols = X.select_dtypes(include=['int64', 'float64']).columns.tolist()
-                categorical_cols = X.select_dtypes(include=['object']).columns.tolist()
-                
-                # Numerical Pipeline
-                imputer_strat = "constant" if "zero" in imputation_strategy else imputation_strategy
-                fill_val = 0 if imputer_strat == "constant" else None
-                
-                if scaling_method == "StandardScaler":
-                    scaler = StandardScaler()
-                elif scaling_method == "MinMaxScaler":
-                    scaler = MinMaxScaler()
-                else:
-                    scaler = RobustScaler()
+                try:
+                    from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler, OneHotEncoder, LabelEncoder
+                    from sklearn.impute import SimpleImputer
+                    from sklearn.compose import ColumnTransformer
+                    from sklearn.pipeline import Pipeline
                     
-                numeric_transformer = Pipeline(steps=[
-                    ('imputer', SimpleImputer(strategy=imputer_strat, fill_value=fill_val)),
-                    ('scaler', scaler)
-                ])
-                
-                # Categorical Pipeline
-                categorical_transformer = Pipeline(steps=[
-                    ('imputer', SimpleImputer(strategy='most_frequent')),
-                    ('encoder', OneHotEncoder(handle_unknown='ignore'))
-                ])
-                
-                preprocessor = ColumnTransformer(
-                    transformers=[
-                        ('num', numeric_transformer, numerical_cols),
-                        ('cat', categorical_transformer, categorical_cols)
+                    # Drop patient_id and admission_date
+                    columns_to_drop = ['patient_id', 'admission_date']
+                    df_clean = df.drop(columns=[col for col in columns_to_drop if col in df.columns])
+                    
+                    # Setup target
+                    X = df_clean.drop('label', axis=1)
+                    y = df_clean['label']
+                    
+                    numerical_cols = X.select_dtypes(include=['int64', 'float64']).columns.tolist()
+                    categorical_cols = X.select_dtypes(include=['object']).columns.tolist()
+                    
+                    # Numerical Pipeline
+                    imputer_strat = "constant" if "zero" in imputation_strategy else imputation_strategy
+                    fill_val = 0 if imputer_strat == "constant" else None
+                    
+                    if scaling_method == "StandardScaler":
+                        scaler = StandardScaler()
+                    elif scaling_method == "MinMaxScaler":
+                        scaler = MinMaxScaler()
+                    else:
+                        scaler = RobustScaler()
+                        
+                    numeric_transformer = Pipeline(steps=[
+                        ('imputer', SimpleImputer(strategy=imputer_strat, fill_value=fill_val)),
+                        ('scaler', scaler)
                     ])
-                
-                # Fit and transform
-                X_processed = preprocessor.fit_transform(X)
-                
-                # Encode target (already 0/1, but for consistency)
-                le = LabelEncoder()
-                y_encoded = le.fit_transform(y)
-                
-                # Extract feature names
-                cat_encoder = preprocessor.named_transformers_['cat'].named_steps['encoder']
-                cat_feature_names = cat_encoder.get_feature_names_out(categorical_cols).tolist()
-                feature_names = numerical_cols + cat_feature_names
-                
-                # Save to session state
-                st.session_state['preprocessor'] = preprocessor
-                st.session_state['label_encoder'] = le
-                st.session_state['X_processed'] = X_processed
-                st.session_state['y_encoded'] = y_encoded
-                st.session_state['feature_names'] = feature_names
-                st.session_state['preprocessing_complete'] = True
-                
-                st.success("Preprocessing completed and saved to session memory!")
-                
-                # Show summary
-                st.write("### Preprocessed Dataset Summary")
-                col1, col2, col3 = st.columns(3)
-                col1.metric("Original Features", len(X.columns))
-                col2.metric("Encoded Features", len(feature_names))
-                col3.metric("Samples", X_processed.shape[0])
-                
-                st.write("**Feature Breakdown:**")
-                st.write(f"- Numerical features: {len(numerical_cols)}")
-                st.write(f"- Categorical features: {len(categorical_cols)}")
-                st.write(f"- Total after encoding: {len(feature_names)}")
-                
-    except Exception as e:
-        st.error(f"Error during preprocessing: {e}")
-        import traceback
-        st.code(traceback.format_exc())
-
-# Continue in next part...
+                    
+                    # Categorical Pipeline
+                    categorical_transformer = Pipeline(steps=[
+                        ('imputer', SimpleImputer(strategy='most_frequent')),
+                        ('encoder', OneHotEncoder(handle_unknown='ignore'))
+                    ])
+                    
+                    preprocessor = ColumnTransformer(
+                        transformers=[
+                            ('num', numeric_transformer, numerical_cols),
+                            ('cat', categorical_transformer, categorical_cols)
+                        ])
+                    
+                    # Fit and transform
+                    X_processed = preprocessor.fit_transform(X)
+                    
+                    # Encode target (already 0/1, but for consistency)
+                    le = LabelEncoder()
+                    y_encoded = le.fit_transform(y)
+                    
+                    # Extract feature names
+                    cat_encoder = preprocessor.named_transformers_['cat'].named_steps['encoder']
+                    cat_feature_names = cat_encoder.get_feature_names_out(categorical_cols).tolist()
+                    feature_names = numerical_cols + cat_feature_names
+                    
+                    # Save preprocessor and other artifacts to files for backend use
+                    import joblib
+                    import os
+                    os.makedirs("models", exist_ok=True)
+                    
+                    joblib.dump(preprocessor, "models/preprocessor.joblib")
+                    joblib.dump(le, "models/label_encoder.joblib")
+                    
+                    with open("models/feature_names.json", "w") as f:
+                        import json
+                        json.dump(feature_names, f)
+                    
+                    st.success("✅ Preprocessing completed and saved!")
+                    st.info("💡 You can now proceed to Model Training")
+                    
+                    # Show summary
+                    st.write("### Preprocessed Dataset Summary")
+                    col1, col2, col3 = st.columns(3)
+                    col1.metric("Original Features", len(X.columns))
+                    col2.metric("Encoded Features", len(feature_names))
+                    col3.metric("Samples", X_processed.shape[0])
+                    
+                    # Show feature breakdown
+                    with st.expander("📊 Feature Breakdown", expanded=False):
+                        st.write(f"**Numerical Features ({len(numerical_cols)}):** {', '.join(numerical_cols)}")
+                        st.write(f"**Categorical Features ({len(categorical_cols)}):** {', '.join(categorical_cols)}")
+                        st.write(f"**Encoded Categorical Features:** {len(cat_feature_names)}")
+    
+                except Exception as e:
+                    st.error(f"Error in preprocessing: {e}")
+                    import traceback
+                    st.code(traceback.format_exc())
 
 elif page == "Model Training":
     st.title("Automated Model Training")
-    st.markdown("Train the model using your custom preprocessed dataset.")
+    st.markdown("Train the model using your preprocessed dataset.")
     
-    if not st.session_state.get('preprocessing_complete', False):
-        st.warning("⚠️ Please complete and confirm the Preprocessing step first.")
-    else:
-        st.info("✅ Preprocessed dataset loaded from session memory.")
+    # Check if we have a dataset to work with
+    dataset_available = False
+    
+    # Try to load from default dataset or check if preprocessing was done
+    try:
+        # First, try to load the default dataset
+        df = pd.read_csv(DATASET_PATH)
+        dataset_available = True
+        st.info("✅ Dataset loaded successfully")
         
-        X_processed = st.session_state['X_processed']
-        feature_names = st.session_state['feature_names']
+        # Show dataset info
+        st.write("### Dataset Overview")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Rows", len(df))
+        col2.metric("Total Columns", len(df.columns))
         
-        st.write("### Data Overview")
-        st.write(f"**Shape of Training Data:** {X_processed.shape[0]} rows, {X_processed.shape[1]} features")
+        if 'label' in df.columns:
+            readmission_rate = df['label'].mean()
+            col3.metric("Readmission Rate", f"{readmission_rate:.1%}")
         
+    except Exception as e:
+        st.error(f"No dataset available. Please go to Preprocessing page first to load data.")
+        dataset_available = False
+    
+    if dataset_available:
         st.divider()
-        st.write("### Model Configuration")
+        st.subheader("🤖 Model Configuration")
         
         test_size_pct = st.slider("Test Set Size (%)", min_value=10, max_value=50, value=20, step=5) / 100.0
         model_choice = st.selectbox("Select Machine Learning Algorithm", 
@@ -597,22 +741,29 @@ elif page == "Model Training":
         if st.button("Train Model", type="primary", use_container_width=True):
             with st.spinner(f"Training {model_choice} model..."):
                 try:
+                    # Use the train_model.py approach for consistency
+                    from utils.preprocess import load_data, preprocess_data
                     from sklearn.ensemble import RandomForestClassifier
                     from sklearn.linear_model import LogisticRegression
                     from sklearn.tree import DecisionTreeClassifier
-                    from xgboost import XGBClassifier
-                    from sklearn.model_selection import train_test_split
+                    try:
+                        from xgboost import XGBClassifier
+                    except ImportError:
+                        st.error("XGBoost not installed. Please install it with: pip install xgboost")
+                        st.stop()
                     from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
                     import joblib
+                    import json
+                    import os
                     
-                    y_encoded = st.session_state['y_encoded']
-                    preprocessor = st.session_state['preprocessor']
-                    le = st.session_state['label_encoder']
+                    # Load and preprocess data
+                    df_for_training = pd.read_csv(DATASET_PATH)
+                    X_train, X_test, y_train, y_test, feature_names, preprocessor = preprocess_data(df_for_training)
                     
-                    # Split data
-                    X_train, X_test, y_train, y_test = train_test_split(
-                        X_processed, y_encoded, test_size=test_size_pct, random_state=42, stratify=y_encoded
-                    )
+                    # Load the label encoder that was created during preprocessing
+                    le = joblib.load("models/label_encoder.joblib")
+                    
+                    # Train model based on selection
                     
                     # Train model
                     if model_choice == "Random Forest":

@@ -2,31 +2,24 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 
 class PatientData(BaseModel):
-    Age: int
-    Gender: str
-    Weight_kg: float
-    Height_cm: float
-    BMI: float
-    Blood_Pressure: str
-    Heart_Rate: int
-    Diabetes: str
-    Hypertension: str
-    Heart_Disease: str
-    Smoking_Status: str
-    Alcohol_Use: str
-    Previous_Admissions: int
-    Length_of_Stay: int
-    Diagnosis: str
-    Lab_Result: str
-    Cholesterol_Level: str
-    Glucose_Level: int
-    Medication_Adherence: str
-    Insurance_Type: str
-    Discharge_Type: str
-    Follow_Up_Required: str
+    """Patient data model matching hospital_readmission_dataset.csv structure"""
+    season: str
+    age: int
+    gender: str
+    region: str
+    primary_diagnosis: str
+    comorbidities_count: int
+    length_of_stay: int
+    treatment_type: str
+    medications_count: int
+    followup_visits_last_year: int
+    prev_readmissions: int
+    insurance_type: str
+    discharge_disposition: str
+    readmission_risk_score: float
 
 class PredictionResponse(BaseModel):
-    prediction: str
+    prediction: str  # "Readmitted" or "Not Readmitted"
     probability: float
     risk_category: str
     feature_importance: Dict[str, float]

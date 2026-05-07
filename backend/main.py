@@ -26,25 +26,41 @@ def health_check():
 def predict_readmission(patient_data: PatientData):
     """Predict readmission risk for a single patient."""
     try:
+        # Check if model is loaded
+        if predictor.model is None:
+            raise HTTPException(
+                status_code=503, 
+                detail="Model not loaded. Please train a model first or ensure model files exist in the 'models' directory."
+            )
+        
+        if predictor.preprocessor is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Preprocessor not loaded. Please train a model first."
+            )
+            
         data_dict = patient_data.model_dump()
         result = predictor.predict(data_dict)
         return result
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Prediction error: {error_details}")
+        raise HTTPException(status_code=400, detail=f"Prediction failed: {str(e)}")
 
 @app.get("/analytics", response_model=AnalyticsResponse)
 def get_analytics():
-    """Get aggregated analytics from the synthetic dataset."""
+    """Get aggregated analytics from the hospital readmission dataset."""
     try:
-        df = pd.read_csv("data/synthetic_hospital_data.csv")
+        df = pd.read_csv("data/hospital_readmission_dataset.csv")
         total_patients = len(df)
-        readmission_rate = df["Readmitted"].value_counts(normalize=True).get("Yes", 0)
-        avg_los = df["Length_of_Stay"].mean()
+        readmission_rate = (df["label"] == 1).sum() / total_patients
+        avg_los = df["length_of_stay"].mean()
         
-        # Calculate high risk percentage based on basic rules or model predictions if needed
-        # We will use simple threshold for demo analytics
-        # A more realistic approach would be running batch inference, but for analytics dashboard we can simulate it
-        high_risk_percentage = len(df[(df["Age"] > 65) & (df["Previous_Admissions"] > 1)]) / total_patients
+        # Calculate high risk percentage (readmission_risk_score > 0.7)
+        high_risk_percentage = (df["readmission_risk_score"] > 0.7).sum() / total_patients
         
         return {
             "total_patients": total_patients,

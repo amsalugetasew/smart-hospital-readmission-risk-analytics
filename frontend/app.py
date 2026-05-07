@@ -73,11 +73,18 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # API URL - Use environment variable for deployment
-API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
+API_URL = os.getenv("API_URL", "http://localhost:8000")
 
-# For Streamlit Cloud deployment, you can set this in secrets
-if hasattr(st, 'secrets') and 'API_URL' in st.secrets:
-    API_URL = st.secrets['API_URL']
+# For Streamlit Cloud deployment, check if secrets exist safely
+try:
+    if hasattr(st, 'secrets') and 'API_URL' in st.secrets:
+        API_URL = st.secrets['API_URL']
+except Exception:
+    # No secrets file or error accessing secrets - use default local URL
+    API_URL = "http://localhost:8000"
+
+# Debug: Print the API URL being used
+print(f"🔗 Frontend connecting to: {API_URL}")
 
 def check_backend_health():
     """Check if backend is running and healthy"""
@@ -86,8 +93,15 @@ def check_backend_health():
         if response.status_code == 200:
             data = response.json()
             return data.get("status") == "healthy" and data.get("model_loaded", False)
-    except:
-        pass
+    except requests.exceptions.ConnectionError:
+        print(f"❌ Connection error to {API_URL}/health")
+        return False
+    except requests.exceptions.Timeout:
+        print(f"⏱️ Timeout connecting to {API_URL}/health")
+        return False
+    except Exception as e:
+        print(f"❌ Error checking backend health: {e}")
+        return False
     return False
 
 def get_analytics():

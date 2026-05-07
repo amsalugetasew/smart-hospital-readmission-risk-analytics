@@ -4,16 +4,32 @@ from backend.models import PatientData, PredictionResponse, AnalyticsResponse
 from backend.predictor import predictor
 import pandas as pd
 import uvicorn
+import os
 
 app = FastAPI(title="Smart Hospital Readmission Risk Analytics API", version="1.0")
 
+# Configure CORS for production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://*.streamlit.app",  # Streamlit Cloud
+        "https://*.streamlitapp.com",  # Streamlit Cloud (old domain)
+        "http://localhost:8501",  # Local development
+        "http://127.0.0.1:8501",  # Local development
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/")
+def root():
+    """Root endpoint for health checks."""
+    return {
+        "message": "Smart Hospital Readmission Risk Analytics API",
+        "status": "running",
+        "version": "1.0"
+    }
 
 @app.get("/health")
 def health_check():
@@ -84,4 +100,5 @@ def reload_model():
         raise HTTPException(status_code=500, detail=f"Error reloading models: {str(e)}")
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)

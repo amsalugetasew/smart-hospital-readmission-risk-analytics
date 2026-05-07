@@ -115,6 +115,76 @@ This platform helps healthcare professionals:
 
 ---
 
+## 🚀 Quick Start & Deployment
+
+### 💻 Local Development
+
+#### Option 1: Using Batch Files (Windows)
+```cmd
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Train the model
+python train_model.py
+
+# 3. Start both services
+start_backend_with_reload.bat    # Terminal 1
+streamlit run frontend/app.py    # Terminal 2
+```
+
+#### Option 2: Manual Setup
+```cmd
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Train the model
+python train_model.py
+
+# 3. Start backend (Terminal 1)
+uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+
+# 4. Start frontend (Terminal 2)
+streamlit run frontend/app.py
+```
+
+#### Option 3: Docker
+```cmd
+docker build -t smart-hospital .
+docker run -p 8000:8000 -p 8501:8501 smart-hospital
+```
+
+**Local Access:**
+- Frontend: http://localhost:8501
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+
+### 🌐 Production Deployment
+
+#### Recommended: Streamlit Cloud + Railway
+
+1. **Deploy Backend to Railway:**
+   - Push code to GitHub
+   - Connect Railway to your repository
+   - Railway auto-deploys using `Procfile`
+   - Get your backend URL: `https://your-app.railway.app`
+
+2. **Deploy Frontend to Streamlit Cloud:**
+   - Connect Streamlit Cloud to your GitHub repository
+   - Set main file: `frontend/app.py`
+   - Add backend URL to secrets:
+     ```toml
+     API_URL = "https://your-app.railway.app"
+     ```
+
+3. **Access Your Live Application:**
+   - Frontend: `https://your-app.streamlit.app`
+   - Backend: `https://your-app.railway.app`
+
+**📖 Complete deployment guide:** [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)  
+**✅ Deployment checklist:** [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)
+
+---
+
 ## 📁 Project Structure
 
 ```

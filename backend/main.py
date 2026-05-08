@@ -8,15 +8,14 @@ import os
 
 app = FastAPI(title="Smart Hospital Readmission Risk Analytics API", version="1.0")
 
-# Configure CORS for production
+# Configure CORS for production and local development
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://*.streamlit.app",  # Streamlit Cloud
-        "https://*.streamlitapp.com",  # Streamlit Cloud (old domain)
-        "http://localhost:8501",  # Local development
-        "http://127.0.0.1:8501",  # Local development
+        "http://localhost:8501",      # Local development
+        "http://127.0.0.1:8501",      # Local development
     ],
+    allow_origin_regex=r"https://.*\.streamlit\.app|https://.*\.streamlitapp\.com",  # Streamlit Cloud (both domains)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

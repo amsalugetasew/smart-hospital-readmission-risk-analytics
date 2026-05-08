@@ -480,50 +480,6 @@ The dashboard includes 12+ interactive chart types:
 
 ---
 
-## 🔧 CORS Configuration
-
-### For Deployment
-
-The backend uses proper CORS configuration for Streamlit Cloud:
-
-```python
-# backend/main.py
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8501",      # Local development
-        "http://127.0.0.1:8501",
-    ],
-    allow_origin_regex=r"https://.*\.streamlit\.app|https://.*\.streamlitapp\.com",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-```
-
-### Important Notes
-
-**❌ Don't Use Wildcards in allow_origins:**
-```python
-# This DOESN'T work:
-allow_origins=["https://*.streamlit.app"]  # Treated as exact string
-```
-
-**✅ Use allow_origin_regex Instead:**
-```python
-# This WORKS:
-allow_origin_regex=r"https://.*\.streamlit\.app"  # Regex pattern
-```
-
-### Why This Matters
-
-FastAPI's `allow_origins` parameter does NOT support wildcard patterns. When you write `"https://*.streamlit.app"`, FastAPI treats it as an exact string match, not a pattern. This blocks all requests from Streamlit Cloud.
-
-**Solution**: Use `allow_origin_regex` with proper regex patterns:
-- `r"https://.*\.streamlit\.app"` - Matches any subdomain of streamlit.app
-- `r"https://.*\.streamlitapp\.com"` - Matches old streamlit domain
-- `|` - OR operator to match multiple patterns
-
 ### Testing CORS
 
 **Local Testing:**
@@ -534,33 +490,7 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 # Start frontend
 streamlit run frontend/app.py
 
-# Test prediction - should work
-```
 
-**Production Testing:**
-```bash
-# Test backend health
-curl https://your-backend.railway.app/health
-
-# Check CORS headers
-curl -H "Origin: https://your-app.streamlit.app" \
-     -H "Access-Control-Request-Method: POST" \
-     -X OPTIONS https://your-backend.railway.app/predict -v
-```
-
-### Troubleshooting CORS
-
-**Issue**: "CORS policy: No 'Access-Control-Allow-Origin' header"
-
-**Solutions:**
-1. Verify `allow_origin_regex` is used (not `allow_origins` with wildcards)
-2. Check regex pattern matches your Streamlit URL
-3. Test regex at https://regex101.com/
-4. Restart backend after changes
-5. Check browser console for exact error
-6. Verify backend logs show the request
-
----
 
 ## 📊 Dataset Information
 
@@ -588,152 +518,13 @@ curl -H "Origin: https://your-app.streamlit.app" \
 
 ---
 
-## 🔧 API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Check API and model health |
-| POST | `/predict` | Predict readmission risk |
-| GET | `/analytics` | Get aggregated analytics |
-| POST | `/reload-model` | Reload model from disk |
-
-### Example Prediction Request
-
-```json
-{
-  "season": "Spring",
-  "age": 65,
-  "gender": "Male",
-  "region": "North",
-  "primary_diagnosis": "Diabetes",
-  "comorbidities_count": 2,
-  "length_of_stay": 5,
-  "treatment_type": "Medical",
-  "medications_count": 5,
-  "followup_visits_last_year": 3,
-  "prev_readmissions": 1,
-  "insurance_type": "Private",
-  "discharge_disposition": "Home",
-  "readmission_risk_score": 0.5
-}
-```
-
 ---
 
 ## 🛠️ Troubleshooting
 
 ### Common Issues & Solutions
 
-#### 1. Backend Connection Error
-
-**Symptoms:**
-- "Backend Disconnected" in sidebar
-- "Connection refused" errors
-- Predictions fail
-
-**Solutions:**
-```bash
-# Check if backend is running
-curl http://localhost:8000/health
-
-# Start backend if not running
-uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
-
-# Check port 8000 is not in use
-netstat -ano | findstr :8000
-
-# Kill process if port is in use (Windows)
-taskkill /PID <PID> /F
-```
-
-#### 2. Model Not Loaded
-
-**Symptoms:**
-- "Model not loaded" error
-- 503 Service Unavailable
-
-**Solutions:**
-```bash
-# Train the model
-python train_model.py
-
-# Verify model files exist
-dir models\random_forest_model.joblib
-dir models\preprocessor.joblib
-dir models\label_encoder.joblib
-
-# Reload model via API
-curl -X POST http://localhost:8000/reload-model
-```
-
-#### 3. 422 Validation Error
-
-**Symptoms:**
-- "Field required" error
-- Validation errors on prediction
-
-**Solutions:**
-- Restart backend with `--reload` flag
-- Verify all 14 required fields are provided
-- Check field names match exactly (case-sensitive)
-- Ensure data types are correct (numbers as numbers, text as text)
-
-#### 4. Module Not Found
-
-**Symptoms:**
-- ImportError or ModuleNotFoundError
-- "No module named 'streamlit'" or similar
-
-**Solutions:**
-```bash
-# Reinstall dependencies
-pip install -r requirements.txt
-
-# Verify installation
-pip list | findstr streamlit
-pip list | findstr fastapi
-
-# Use virtual environment
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-#### 5. Port Already in Use
-
-**Symptoms:**
-- "Address already in use" error
-- Cannot start backend or frontend
-
-**Solutions:**
-```bash
-# Windows - Find process using port
-netstat -ano | findstr :8000
-netstat -ano | findstr :8501
-
-# Kill the process
-taskkill /PID <PID> /F
-
-# Or use different ports
-uvicorn backend.main:app --host 0.0.0.0 --port 8001
-streamlit run frontend/app.py --server.port 8502
-```
-
-#### 6. CORS Errors (Deployment)
-
-**Symptoms:**
-- "CORS policy" errors in browser console
-- Requests blocked from Streamlit Cloud
-
-**Solutions:**
-1. Verify `allow_origin_regex` is used in `backend/main.py`
-2. Check regex pattern matches your Streamlit URL
-3. Don't use wildcards in `allow_origins` (doesn't work)
-4. Restart backend after CORS changes
-5. Clear browser cache
-6. Check backend logs for CORS errors
-
-#### 7. Batch Prediction Fails
+#### 1. Batch Prediction Fails
 
 **Symptoms:**
 - "Missing required columns" error
@@ -747,7 +538,7 @@ streamlit run frontend/app.py --server.port 8502
 - Use CSV instead of Excel for large files
 - Check file size (max 10,000 rows recommended)
 
-#### 8. Visualizations Not Showing
+#### 2. Visualizations Not Showing
 
 **Symptoms:**
 - Blank charts or missing visualizations
@@ -767,111 +558,8 @@ python -c "import pandas as pd; df = pd.read_csv('data/hospital_readmission_data
 # Clear Streamlit cache
 streamlit cache clear
 ```
+\
 
-#### 9. Slow Performance
-
-**Symptoms:**
-- Slow predictions
-- Dashboard takes long to load
-- Batch processing is slow
-
-**Solutions:**
-- Reduce batch size (process in smaller chunks)
-- Use CSV instead of Excel
-- Close other applications
-- Check system resources (CPU, RAM)
-- Use embedded model for faster predictions (no backend needed)
-- Sample large datasets for visualizations
-
-#### 10. Deployment Issues
-
-**Symptoms:**
-- App crashes on Streamlit Cloud
-- Backend not responding on Railway
-- "Application error" messages
-
-**Solutions:**
-
-**Streamlit Cloud:**
-- Check `requirements.txt` includes all dependencies
-- Verify Python version in `runtime.txt` (3.9+)
-- Add backend URL to secrets (if using backend)
-- Check Streamlit Cloud logs for errors
-- Ensure `frontend/app.py` is set as main file
-
-**Railway Backend:**
-- Verify `Procfile` exists with correct command
-- Check environment variables (PORT is auto-set)
-- Review Railway logs for errors
-- Ensure `requirements.txt` is complete
-- Test backend URL: `https://your-app.railway.app/health`
-
-### Getting Help
-
-**Check These First:**
-1. Backend health: `http://localhost:8000/health`
-2. Backend logs in terminal
-3. Frontend logs in browser console (F12)
-4. Streamlit Cloud logs (if deployed)
-5. Railway logs (if deployed)
-
-**Diagnostic Commands:**
-```bash
-# Test backend
-curl http://localhost:8000/health
-
-# Test prediction
-curl -X POST http://localhost:8000/predict \
-  -H "Content-Type: application/json" \
-  -d '{"age": 65, "gender": "male", ...}'
-
-# Check Python version
-python --version
-
-# Check installed packages
-pip list
-
-# Check file structure
-dir /s /b *.py
-```
-
----
-
-## 🔄 Preprocessing Pipeline
-
-The preprocessing pipeline ensures consistency between training and prediction:
-
-**Training Phase:**
-1. Load data from `hospital_readmission_dataset.csv`
-2. Exclude `patient_id` and `admission_date` (identifiers)
-3. Split features into categorical and numerical
-4. Apply preprocessing:
-   - **Numerical:** Impute missing values (median) → Scale (StandardScaler)
-   - **Categorical:** Impute missing values (most frequent) → One-hot encode
-5. Fit preprocessor on training data
-6. Save to `models/preprocessor.joblib`
-
-**Prediction Phase:**
-1. Load saved preprocessor from `models/preprocessor.joblib`
-2. Apply same transformations via `.transform()` (not `.fit_transform()`)
-3. Guarantees identical preprocessing (same imputation values, scaling parameters, encoding)
-
-This ensures the model receives data in the exact same format during prediction as it saw during training.
-
----
-
-## 🎯 Model Performance
-
-The trained Random Forest model achieves:
-- **Accuracy:** ~85-90%
-- **Precision:** ~80-85%
-- **Recall:** ~85-90%
-- **F1 Score:** ~82-87%
-- **ROC AUC:** ~90-95%
-
-*Metrics vary based on training data and hyperparameters*
-
----
 
 ## 🤝 Contributing
 
@@ -881,22 +569,6 @@ Contributions are welcome! Please:
 3. Make your changes
 4. Submit a pull request
 
----
-
-## 📝 License
-
-This project is for educational and research purposes.
-
----
-
-## 🆘 Need Help?
-
-1. Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common issues
-2. Run `python verify_backend.py` for diagnostics
-3. Check backend console for error messages
-4. Review API docs at http://localhost:8000/docs
-
----
 
 ## 📝 License
 

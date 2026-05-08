@@ -581,6 +581,12 @@ if page == "Overview":
         try:
             df = pd.read_csv(DATASET_PATH)
             
+            # Show which dataset is being used
+            if st.session_state.get('using_uploaded_data', False):
+                st.info(f"📊 **Displaying statistics for:** Uploaded Dataset ({len(df):,} records)")
+            else:
+                st.info(f"📊 **Displaying statistics for:** Default Dataset ({len(df):,} records)")
+            
             st.markdown("""
             ### Welcome to the Smart Hospital Readmission Risk Analytics Platform
             
@@ -601,24 +607,35 @@ if page == "Overview":
             with col1:
                 st.markdown("**Dataset Statistics:**")
                 st.write(f"- Total Records: **{len(df):,}**")
-                st.write(f"- Total Features: **17**")
-                st.write(f"- Training Features: **14**")
+                total_features = len(df.columns)
+                st.write(f"- Total Features: **{total_features}**")
+                # Count training features (exclude patient_id, admission_date, label)
+                training_features = total_features - len([col for col in ['patient_id', 'admission_date', 'label'] if col in df.columns])
+                st.write(f"- Training Features: **{training_features}**")
                 st.write(f"- Missing Values: **{df.isna().sum().sum()}**")
                 
             with col2:
                 st.markdown("**Target Distribution:**")
-                readmitted_count = (df['label'] == 1).sum()
-                not_readmitted_count = (df['label'] == 0).sum()
-                st.write(f"- Readmitted: **{readmitted_count:,}** ({readmitted_count/len(df)*100:.1f}%)")
-                st.write(f"- Not Readmitted: **{not_readmitted_count:,}** ({not_readmitted_count/len(df)*100:.1f}%)")
-                st.write(f"- Class Imbalance: **{readmitted_count/not_readmitted_count:.2f}:1**")
+                if 'label' in df.columns:
+                    readmitted_count = (df['label'] == 1).sum()
+                    not_readmitted_count = (df['label'] == 0).sum()
+                    st.write(f"- Readmitted: **{readmitted_count:,}** ({readmitted_count/len(df)*100:.1f}%)")
+                    st.write(f"- Not Readmitted: **{not_readmitted_count:,}** ({not_readmitted_count/len(df)*100:.1f}%)")
+                    if not_readmitted_count > 0:
+                        st.write(f"- Class Imbalance: **{readmitted_count/not_readmitted_count:.2f}:1**")
+                else:
+                    st.warning("⚠️ 'label' column not found in dataset")
                 
             with col3:
                 st.markdown("**Key Statistics:**")
-                st.write(f"- Avg Age: **{df['age'].mean():.1f}** years")
-                st.write(f"- Avg Comorbidities: **{df['comorbidities_count'].mean():.1f}**")
-                st.write(f"- Avg Medications: **{df['medications_count'].mean():.1f}**")
-                st.write(f"- Avg Risk Score: **{df['readmission_risk_score'].mean():.2f}**")
+                if 'age' in df.columns:
+                    st.write(f"- Avg Age: **{df['age'].mean():.1f}** years")
+                if 'comorbidities_count' in df.columns:
+                    st.write(f"- Avg Comorbidities: **{df['comorbidities_count'].mean():.1f}**")
+                if 'medications_count' in df.columns:
+                    st.write(f"- Avg Medications: **{df['medications_count'].mean():.1f}**")
+                if 'readmission_risk_score' in df.columns:
+                    st.write(f"- Avg Risk Score: **{df['readmission_risk_score'].mean():.2f}**")
             
             st.divider()
             
@@ -628,24 +645,30 @@ if page == "Overview":
             col1, col2 = st.columns(2)
             
             with col1:
-                st.markdown("**Numerical Features (7):**")
+                st.markdown("**Numerical Features:**")
                 numerical_features = [
                     "age", "comorbidities_count", "length_of_stay",
                     "medications_count", "followup_visits_last_year",
                     "prev_readmissions", "readmission_risk_score"
                 ]
-                for feat in numerical_features:
+                # Only show features that exist in the dataset
+                existing_numerical = [feat for feat in numerical_features if feat in df.columns]
+                for feat in existing_numerical:
                     st.write(f"- {feat}")
+                st.caption(f"Total: {len(existing_numerical)} features")
                     
             with col2:
-                st.markdown("**Categorical Features (7):**")
+                st.markdown("**Categorical Features:**")
                 categorical_features = [
                     "season", "gender", "region", "primary_diagnosis",
                     "treatment_type", "insurance_type", "discharge_disposition"
                 ]
-                for feat in categorical_features:
+                # Only show features that exist in the dataset
+                existing_categorical = [feat for feat in categorical_features if feat in df.columns]
+                for feat in existing_categorical:
                     unique_count = df[feat].nunique()
                     st.write(f"- {feat} ({unique_count} categories)")
+                st.caption(f"Total: {len(existing_categorical)} features")
             
             st.divider()
             
@@ -671,6 +694,45 @@ if page == "Overview":
                 treatments = df['treatment_type'].value_counts()
                 for treatment, count in treatments.items():
                     st.write(f"- {treatment}: {count} ({count/len(df)*100:.1f}%)")
+            
+            st.divider()
+            
+            # Retrain Embedded Model Section (if using uploaded data)
+            if st.session_state.get('using_uploaded_data', False) and 'label' in df.columns:
+                st.subheader("🤖 Retrain Embedded Model")
+                st.info("💡 You can retrain the embedded model to use your uploaded dataset for predictions.")
+                
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    st.markdown("""
+                    **Why retrain?**
+                    - Use your hospital's data for predictions
+                    - Model learns patterns from your patient population
+                    - Improves prediction accuracy for your specific context
+                    """)
+                
+                with col2:
+                    if st.button("🔄 Retrain Embedded Model", type="primary", use_container_width=True):
+                        with st.spinner("Training model on your data..."):
+                            try:
+                                # Import training function
+                                import sys
+                                sys.path.insert(0, '.')
+                                from train_model import train_and_evaluate_model
+                                
+                                # Train the model
+                                train_and_evaluate_model()
+                                
+                                # Reload embedded predictor
+                                from frontend.embedded_predictor import embedded_predictor
+                                embedded_predictor.load_models()
+                                
+                                st.success("✅ Embedded model retrained successfully!")
+                                st.info("🔄 The model will now use your uploaded data for predictions.")
+                                
+                            except Exception as e:
+                                st.error(f"❌ Error retraining model: {str(e)}")
+                                st.info("💡 Try using the Model Training page for more control.")
             
             st.divider()
             

@@ -182,24 +182,7 @@ This platform helps healthcare professionals:
    - Frontend: `https://your-app.streamlit.app`
    - Backend: `https://your-app.railway.app`
 
-#### CORS Configuration for Deployment
 
-The backend is configured to work with Streamlit Cloud deployments:
-
-```python
-# backend/main.py CORS configuration
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8501",      # Local development
-        "http://127.0.0.1:8501",
-    ],
-    allow_origin_regex=r"https://.*\.streamlit\.app|https://.*\.streamlitapp\.com",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-```
 
 **Important**: FastAPI's `allow_origins` does NOT support wildcards like `"https://*.streamlit.app"`. Use `allow_origin_regex` with regex patterns instead.
 
@@ -213,10 +196,10 @@ app.add_middleware(
 │   ├── models.py        # Pydantic models
 │   └── predictor.py     # Prediction logic
 ├── frontend/            # Streamlit dashboard
-│   └── app.py          # Interactive UI
+|   ├── app.py          # Interactive UI
+│   ├── embedded_predictor.py # To load Embedded Model
 ├── utils/              # Utilities
 │   ├── preprocess.py   # Data preprocessing
-│   └── generate_data.py # Data generation
 ├── data/               # Dataset
 │   └── hospital_readmission_dataset.csv
 ├── models/             # Trained models

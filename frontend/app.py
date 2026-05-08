@@ -1178,120 +1178,433 @@ elif page == "Model Training":
                     st.code(traceback.format_exc())
 
 elif page == "Patient Risk Analysis":
-    st.title("Patient Risk Prediction")
-    st.markdown("Enter patient details to predict their risk of hospital readmission within 30 days.")
+    st.title("🔮 Patient Risk Prediction")
+    st.markdown("Predict hospital readmission risk for individual patients or batch processing")
     
-    # Debug panel (expandable)
-    with st.expander("🔧 Debug Information", expanded=False):
-        st.write(f"**Backend URL:** {API_URL}")
-        backend_status = check_backend_health()
-        st.write(f"**Backend Status:** {'✅ Healthy' if backend_status else '❌ Unhealthy'}")
-        
-        if st.button("Test Backend Connection"):
-            with st.spinner("Testing connection..."):
-                try:
-                    health_response = requests.get(f"{API_URL}/health", timeout=3)
-                    st.write(f"Health endpoint: {health_response.status_code} - {health_response.json()}")
-                except Exception as e:
-                    st.error(f"Health endpoint error: {e}")
-                
-                try:
-                    analytics_response = requests.get(f"{API_URL}/analytics", timeout=3)
-                    st.write(f"Analytics endpoint: {analytics_response.status_code}")
-                except Exception as e:
-                    st.error(f"Analytics endpoint error: {e}")
+    # Create tabs for single vs batch prediction
+    tab1, tab2 = st.tabs(["📝 Single Patient Prediction", "📊 Batch Prediction (Upload File)"])
     
-    with st.form("prediction_form"):
-        col1, col2, col3 = st.columns(3)
+    # ==================== TAB 1: SINGLE PATIENT PREDICTION ====================
+    with tab1:
+        st.markdown("### Enter Patient Details")
+        st.markdown("Fill in the form below to predict readmission risk for a single patient.")
         
-        with col1:
-            age = st.number_input("Age", min_value=18, max_value=120, value=65)
-            gender = st.selectbox("Gender", ["Male", "Female"])
-            region = st.selectbox("Region", ["North", "South", "East", "West"])
-            season = st.selectbox("Season", ["Spring", "Summer", "Fall", "Winter"])
-            insurance_type = st.selectbox("Insurance Type", ["Private", "Medicare", "Medicaid", "Self-Pay"])
-        with col2:
-            primary_diagnosis = st.selectbox("Primary Diagnosis", 
-                ["Diabetes", "Hypertension", "Heart Failure", "Stroke", "COPD", 
-                 "Pneumonia", "Kidney Disease", "Cancer", "Other"])
-            comorbidities_count = st.number_input("Number of Comorbidities", min_value=0, max_value=20, value=2)
-            length_of_stay = st.number_input("Length of Stay (days)", min_value=1, max_value=90, value=5)
-            readmission_risk_score = st.slider("Readmission Risk Score", min_value=0.0, max_value=1.0, value=0.5, step=0.01)
-            discharge_disposition = st.selectbox("Discharge Disposition", 
-                ["Home", "Home Health", "Skilled Nursing", "Rehab", "Other"])           
-        with col3:
-            treatment_type = st.selectbox("Treatment Type", ["Medical", "Surgical", "Interventional"])
-            medications_count = st.number_input("Number of Medications", min_value=0, max_value=50, value=5)
-            followup_visits_last_year = st.number_input("Follow-up Visits (Last Year)", min_value=0, max_value=50, value=3)
-            prev_readmissions = st.number_input("Previous Readmissions", min_value=0, max_value=20, value=1)
+        # Debug panel (expandable)
+        with st.expander("🔧 Debug Information", expanded=False):
+            st.write(f"**Backend URL:** {API_URL}")
+            backend_status = check_backend_health()
+            st.write(f"**Backend Status:** {'✅ Healthy' if backend_status else '❌ Unhealthy'}")
             
-            
-        submit = st.form_submit_button("Predict Risk", use_container_width=True)
+            if st.button("Test Backend Connection"):
+                with st.spinner("Testing connection..."):
+                    try:
+                        health_response = requests.get(f"{API_URL}/health", timeout=3)
+                        st.write(f"Health endpoint: {health_response.status_code} - {health_response.json()}")
+                    except Exception as e:
+                        st.error(f"Health endpoint error: {e}")
+                    
+                    try:
+                        analytics_response = requests.get(f"{API_URL}/analytics", timeout=3)
+                        st.write(f"Analytics endpoint: {analytics_response.status_code}")
+                    except Exception as e:
+                        st.error(f"Analytics endpoint error: {e}")
         
-    if submit:
-        data = {
-            "season": season,
-            "age": age,
-            "gender": gender,
-            "region": region,
-            "primary_diagnosis": primary_diagnosis,
-            "comorbidities_count": comorbidities_count,
-            "length_of_stay": length_of_stay,
-            "treatment_type": treatment_type,
-            "medications_count": medications_count,
-            "followup_visits_last_year": followup_visits_last_year,
-            "prev_readmissions": prev_readmissions,
-            "insurance_type": insurance_type,
-            "discharge_disposition": discharge_disposition,
-            "readmission_risk_score": readmission_risk_score
-        }
-        
-        with st.spinner("Analyzing patient data..."):
-            result = get_prediction(data)
-            
-        if result:
-            st.divider()
-            st.subheader("Prediction Results")
-            st.info(f"Model Used: **{result.get('model_type', 'Unknown')}**")
-            
-            col1, col2 = st.columns([1, 2])
+        with st.form("prediction_form"):
+            col1, col2, col3 = st.columns(3)
             
             with col1:
-                risk_cat = result["risk_category"]
-                color = "green" if risk_cat == "Low Risk" else "orange" if risk_cat == "Medium Risk" else "red"
-                
-                st.markdown(f"""
-                <div style="text-align: center; padding: 20px; background-color: {color}; color: white; border-radius: 10px;">
-                    <h2>{risk_cat}</h2>
-                    <h1>{result['probability']:.1%}</h1>
-                    <p>Probability of Readmission</p>
-                    <p><strong>{result['prediction']}</strong></p>
-                </div>
-                """, unsafe_allow_html=True)
-                
+                age = st.number_input("Age", min_value=18, max_value=120, value=65)
+                gender = st.selectbox("Gender", ["Male", "Female"])
+                region = st.selectbox("Region", ["North", "South", "East", "West"])
+                season = st.selectbox("Season", ["Spring", "Summer", "Fall", "Winter"])
+                insurance_type = st.selectbox("Insurance Type", ["Private", "Medicare", "Medicaid", "Self-Pay"])
             with col2:
-                st.markdown("#### Key Risk Factors (Explainable AI)")
-                factors = result["feature_importance"]
+                primary_diagnosis = st.selectbox("Primary Diagnosis", 
+                    ["Diabetes", "Hypertension", "Heart Failure", "Stroke", "COPD", 
+                     "Pneumonia", "Kidney Disease", "Cancer", "Other"])
+                comorbidities_count = st.number_input("Number of Comorbidities", min_value=0, max_value=20, value=2)
+                length_of_stay = st.number_input("Length of Stay (days)", min_value=1, max_value=90, value=5)
+                readmission_risk_score = st.slider("Readmission Risk Score", min_value=0.0, max_value=1.0, value=0.5, step=0.01)
+                discharge_disposition = st.selectbox("Discharge Disposition", 
+                    ["Home", "Home Health", "Skilled Nursing", "Rehab", "Other"])           
+            with col3:
+                treatment_type = st.selectbox("Treatment Type", ["Medical", "Surgical", "Interventional"])
+                medications_count = st.number_input("Number of Medications", min_value=0, max_value=50, value=5)
+                followup_visits_last_year = st.number_input("Follow-up Visits (Last Year)", min_value=0, max_value=50, value=3)
+                prev_readmissions = st.number_input("Previous Readmissions", min_value=0, max_value=20, value=1)
                 
-                if factors and "Feature importance unavailable" not in factors:
-                    df_factors = pd.DataFrame({
-                        "Feature": list(factors.keys()),
-                        "Impact": list(factors.values())
-                    })
-                    df_factors["Impact_Pct"] = df_factors["Impact"] * 100
-                    df_factors["Color"] = df_factors["Impact"].apply(
-                        lambda x: "Increases Risk" if x > 0 else "Decreases Risk"
-                    )
+                
+            submit = st.form_submit_button("🔮 Predict Risk", use_container_width=True)
+            
+        if submit:
+            data = {
+                "season": season.lower(),
+                "age": age,
+                "gender": gender.lower(),
+                "region": region.lower(),
+                "primary_diagnosis": primary_diagnosis,
+                "comorbidities_count": comorbidities_count,
+                "length_of_stay": length_of_stay,
+                "treatment_type": treatment_type.lower(),
+                "medications_count": medications_count,
+                "followup_visits_last_year": followup_visits_last_year,
+                "prev_readmissions": prev_readmissions,
+                "insurance_type": insurance_type.lower(),
+                "discharge_disposition": discharge_disposition.lower(),
+                "readmission_risk_score": readmission_risk_score
+            }
+            
+            with st.spinner("Analyzing patient data..."):
+                result = get_prediction(data)
+                
+            if result:
+                st.divider()
+                st.subheader("📊 Prediction Results")
+                st.info(f"Model Used: **{result.get('model_type', 'Unknown')}**")
+                
+                col1, col2 = st.columns([1, 2])
+                
+                with col1:
+                    risk_cat = result["risk_category"]
+                    color = "green" if risk_cat == "Low Risk" else "orange" if risk_cat == "Medium Risk" else "red"
                     
-                    fig = px.bar(df_factors, x="Impact_Pct", y="Feature", color="Color",
-                                color_discrete_map={"Increases Risk": "#ef553b", "Decreases Risk": "#00cc96"},
-                                orientation='h', title="Top Contributing Factors",
-                                text=df_factors["Impact_Pct"].apply(lambda x: f"{x:+.1f}%"))
-                    fig.update_layout(yaxis={'categoryorder':'total ascending'}, 
-                                    xaxis_title="Impact on Readmission Risk (%)")
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.markdown(f"""
+                    <div style="text-align: center; padding: 20px; background-color: {color}; color: white; border-radius: 10px;">
+                        <h2>{risk_cat}</h2>
+                        <h1>{result['probability']:.1%}</h1>
+                        <p>Probability of Readmission</p>
+                        <p><strong>{result['prediction']}</strong></p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                with col2:
+                    st.markdown("#### Key Risk Factors (Explainable AI)")
+                    factors = result["feature_importance"]
+                    
+                    if factors and "Feature importance unavailable" not in factors:
+                        df_factors = pd.DataFrame({
+                            "Feature": list(factors.keys()),
+                            "Impact": list(factors.values())
+                        })
+                        df_factors["Impact_Pct"] = df_factors["Impact"] * 100
+                        df_factors["Color"] = df_factors["Impact"].apply(
+                            lambda x: "Increases Risk" if x > 0 else "Decreases Risk"
+                        )
+                        
+                        fig = px.bar(df_factors, x="Impact_Pct", y="Feature", color="Color",
+                                    color_discrete_map={"Increases Risk": "#ef553b", "Decreases Risk": "#00cc96"},
+                                    orientation='h', title="Top Contributing Factors",
+                                    text=df_factors["Impact_Pct"].apply(lambda x: f"{x:+.1f}%"))
+                        fig.update_layout(yaxis={'categoryorder':'total ascending'}, 
+                                        xaxis_title="Impact on Readmission Risk (%)")
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.warning("Feature importance not available for this prediction.")
+    
+    # ==================== TAB 2: BATCH PREDICTION ====================
+    with tab2:
+        st.markdown("### 📤 Upload Patient Data File")
+        st.markdown("Upload a CSV or Excel file with multiple patient records for batch prediction.")
+        
+        # Show required columns
+        with st.expander("📋 Required Columns", expanded=False):
+            st.markdown("""
+            Your file must contain these **14 columns** (case-insensitive):
+            
+            **Categorical Columns:**
+            - `season` - winter, spring, summer, fall
+            - `gender` - male, female
+            - `region` - north, south, east, west
+            - `primary_diagnosis` - Diabetes, Hypertension, Heart Failure, etc.
+            - `treatment_type` - medical, surgical, interventional
+            - `insurance_type` - private, medicare, medicaid, self-pay
+            - `discharge_disposition` - home, home health, skilled nursing, rehab, other
+            
+            **Numerical Columns:**
+            - `age` - Patient age (18-120)
+            - `comorbidities_count` - Number of comorbidities (0-20)
+            - `length_of_stay` - Hospital stay in days (1-90)
+            - `medications_count` - Number of medications (0-50)
+            - `followup_visits_last_year` - Follow-up visits (0-50)
+            - `prev_readmissions` - Previous readmissions (0-20)
+            - `readmission_risk_score` - Risk score (0.0-1.0)
+            
+            **Optional Column:**
+            - `patient_id` - Patient identifier (will be included in results)
+            """)
+        
+        # Download template
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            if st.button("📥 Download Template", use_container_width=True):
+                # Create template DataFrame
+                template_data = {
+                    'patient_id': ['P001', 'P002', 'P003'],
+                    'season': ['winter', 'spring', 'summer'],
+                    'age': [65, 72, 58],
+                    'gender': ['male', 'female', 'male'],
+                    'region': ['north', 'south', 'east'],
+                    'primary_diagnosis': ['Diabetes', 'Hypertension', 'Heart Failure'],
+                    'comorbidities_count': [2, 3, 1],
+                    'length_of_stay': [5, 7, 3],
+                    'treatment_type': ['medical', 'surgical', 'medical'],
+                    'medications_count': [5, 8, 4],
+                    'followup_visits_last_year': [3, 2, 4],
+                    'prev_readmissions': [1, 0, 2],
+                    'insurance_type': ['private', 'medicare', 'medicaid'],
+                    'discharge_disposition': ['home', 'home health', 'home'],
+                    'readmission_risk_score': [0.5, 0.6, 0.7]
+                }
+                template_df = pd.DataFrame(template_data)
+                
+                # Convert to CSV
+                csv = template_df.to_csv(index=False)
+                st.download_button(
+                    label="💾 Download CSV Template",
+                    data=csv,
+                    file_name="batch_prediction_template.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+        
+        with col2:
+            st.info("💡 Download the template to see the correct format, then fill it with your patient data.")
+        
+        st.divider()
+        
+        # File upload
+        uploaded_file = st.file_uploader(
+            "Choose a CSV or Excel file",
+            type=['csv', 'xlsx', 'xls'],
+            help="Upload a file with patient data for batch prediction"
+        )
+        
+        if uploaded_file is not None:
+            try:
+                # Load file
+                if uploaded_file.name.endswith('.csv'):
+                    df_batch = pd.read_csv(uploaded_file)
                 else:
-                    st.warning("Feature importance not available for this prediction.")
+                    if OPENPYXL_AVAILABLE:
+                        df_batch = pd.read_excel(uploaded_file)
+                    else:
+                        st.error("❌ Excel support not available. Please use CSV files.")
+                        st.stop()
+                
+                st.success(f"✅ File loaded: {len(df_batch)} patients")
+                
+                # Show preview
+                with st.expander("👀 Data Preview", expanded=True):
+                    st.dataframe(df_batch.head(10), use_container_width=True)
+                
+                # Validate columns
+                required_cols = ['season', 'age', 'gender', 'region', 'primary_diagnosis',
+                               'comorbidities_count', 'length_of_stay', 'treatment_type',
+                               'medications_count', 'followup_visits_last_year', 'prev_readmissions',
+                               'insurance_type', 'discharge_disposition', 'readmission_risk_score']
+                
+                # Case-insensitive column matching
+                df_batch.columns = df_batch.columns.str.lower().str.strip()
+                missing_cols = [col for col in required_cols if col not in df_batch.columns]
+                
+                if missing_cols:
+                    st.error(f"❌ Missing required columns: {', '.join(missing_cols)}")
+                    st.stop()
+                
+                # Check if patient_id exists
+                has_patient_id = 'patient_id' in df_batch.columns
+                
+                # Predict button
+                if st.button("🔮 Predict for All Patients", type="primary", use_container_width=True):
+                    with st.spinner(f"Processing {len(df_batch)} patients..."):
+                        results = []
+                        progress_bar = st.progress(0)
+                        status_text = st.empty()
+                        
+                        for idx, row in df_batch.iterrows():
+                            status_text.text(f"Processing patient {idx + 1}/{len(df_batch)}...")
+                            
+                            # Prepare data
+                            patient_data = {
+                                'season': str(row['season']).lower(),
+                                'age': int(row['age']),
+                                'gender': str(row['gender']).lower(),
+                                'region': str(row['region']).lower(),
+                                'primary_diagnosis': str(row['primary_diagnosis']),
+                                'comorbidities_count': int(row['comorbidities_count']),
+                                'length_of_stay': int(row['length_of_stay']),
+                                'treatment_type': str(row['treatment_type']).lower(),
+                                'medications_count': int(row['medications_count']),
+                                'followup_visits_last_year': int(row['followup_visits_last_year']),
+                                'prev_readmissions': int(row['prev_readmissions']),
+                                'insurance_type': str(row['insurance_type']).lower(),
+                                'discharge_disposition': str(row['discharge_disposition']).lower(),
+                                'readmission_risk_score': float(row['readmission_risk_score'])
+                            }
+                            
+                            # Get prediction
+                            result = get_prediction(patient_data)
+                            
+                            if result:
+                                result_row = {
+                                    'prediction': result['prediction'],
+                                    'probability': result['probability'],
+                                    'risk_category': result['risk_category']
+                                }
+                                
+                                # Add patient_id if exists
+                                if has_patient_id:
+                                    result_row['patient_id'] = row['patient_id']
+                                
+                                # Add original data
+                                for col in required_cols:
+                                    result_row[col] = row[col]
+                                
+                                results.append(result_row)
+                            else:
+                                # Handle failed prediction
+                                result_row = {
+                                    'prediction': 'Error',
+                                    'probability': 0.0,
+                                    'risk_category': 'Error'
+                                }
+                                if has_patient_id:
+                                    result_row['patient_id'] = row['patient_id']
+                                for col in required_cols:
+                                    result_row[col] = row[col]
+                                results.append(result_row)
+                            
+                            # Update progress
+                            progress_bar.progress((idx + 1) / len(df_batch))
+                        
+                        status_text.text("✅ Processing complete!")
+                        progress_bar.empty()
+                        
+                        # Create results DataFrame
+                        df_results = pd.DataFrame(results)
+                        
+                        # Reorder columns
+                        if has_patient_id:
+                            cols_order = ['patient_id', 'prediction', 'probability', 'risk_category'] + required_cols
+                        else:
+                            cols_order = ['prediction', 'probability', 'risk_category'] + required_cols
+                        df_results = df_results[cols_order]
+                        
+                        st.divider()
+                        st.subheader("📊 Batch Prediction Results")
+                        
+                        # Summary statistics
+                        col1, col2, col3, col4 = st.columns(4)
+                        
+                        total_patients = len(df_results)
+                        readmitted_count = (df_results['prediction'] == 'Readmitted').sum()
+                        high_risk_count = (df_results['risk_category'] == 'High Risk').sum()
+                        avg_probability = df_results['probability'].mean()
+                        
+                        col1.metric("Total Patients", total_patients)
+                        col2.metric("Predicted Readmissions", readmitted_count, 
+                                   delta=f"{readmitted_count/total_patients:.1%}")
+                        col3.metric("High Risk Patients", high_risk_count,
+                                   delta=f"{high_risk_count/total_patients:.1%}")
+                        col4.metric("Avg Probability", f"{avg_probability:.1%}")
+                        
+                        st.divider()
+                        
+                        # Show results table
+                        st.markdown("### 📋 Detailed Results")
+                        
+                        # Add color coding
+                        def highlight_risk(row):
+                            if row['risk_category'] == 'High Risk':
+                                return ['background-color: #ffcccc'] * len(row)
+                            elif row['risk_category'] == 'Medium Risk':
+                                return ['background-color: #fff4cc'] * len(row)
+                            else:
+                                return ['background-color: #ccffcc'] * len(row)
+                        
+                        st.dataframe(
+                            df_results.style.apply(highlight_risk, axis=1),
+                            use_container_width=True,
+                            height=400
+                        )
+                        
+                        st.divider()
+                        
+                        # Download options
+                        st.markdown("### 💾 Download Results")
+                        
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            # CSV download
+                            csv = df_results.to_csv(index=False)
+                            st.download_button(
+                                label="📥 Download as CSV",
+                                data=csv,
+                                file_name=f"batch_predictions_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                                mime="text/csv",
+                                use_container_width=True
+                            )
+                        
+                        with col2:
+                            # Excel download
+                            if OPENPYXL_AVAILABLE:
+                                from io import BytesIO
+                                buffer = BytesIO()
+                                with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                                    df_results.to_excel(writer, index=False, sheet_name='Predictions')
+                                buffer.seek(0)
+                                
+                                st.download_button(
+                                    label="📥 Download as Excel",
+                                    data=buffer,
+                                    file_name=f"batch_predictions_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                    use_container_width=True
+                                )
+                            else:
+                                st.info("Excel download not available. Use CSV instead.")
+                        
+                        # Visualization
+                        st.divider()
+                        st.markdown("### 📈 Results Visualization")
+                        
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            # Pie chart: Risk categories
+                            risk_counts = df_results['risk_category'].value_counts()
+                            fig = px.pie(
+                                values=risk_counts.values,
+                                names=risk_counts.index,
+                                title="Risk Category Distribution",
+                                color=risk_counts.index,
+                                color_discrete_map={
+                                    'Low Risk': '#00A86B',
+                                    'Medium Risk': '#FF6B35',
+                                    'High Risk': '#DC143C'
+                                }
+                            )
+                            st.plotly_chart(fig, use_container_width=True)
+                        
+                        with col2:
+                            # Histogram: Probability distribution
+                            fig = px.histogram(
+                                df_results,
+                                x='probability',
+                                nbins=20,
+                                title="Readmission Probability Distribution",
+                                labels={'probability': 'Probability', 'count': 'Number of Patients'},
+                                color_discrete_sequence=['#0066CC']
+                            )
+                            fig.update_layout(xaxis_tickformat='.0%')
+                            st.plotly_chart(fig, use_container_width=True)
+                
+            except Exception as e:
+                st.error(f"❌ Error processing file: {str(e)}")
+                import traceback
+                with st.expander("🔍 Error Details"):
+                    st.code(traceback.format_exc())
 
 elif page == "Analytics Dashboard":
     st.title("🏥 Hospital Analytics Dashboard")

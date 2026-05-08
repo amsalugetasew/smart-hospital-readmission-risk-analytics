@@ -12,6 +12,27 @@ import time
 import socket
 import sys
 
+# Optional imports with fallbacks
+try:
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    MATPLOTLIB_AVAILABLE = True
+except ImportError:
+    MATPLOTLIB_AVAILABLE = False
+    st.warning("⚠️ Matplotlib/Seaborn not available. Some visualizations may be limited.")
+
+try:
+    import shap
+    SHAP_AVAILABLE = True
+except ImportError:
+    SHAP_AVAILABLE = False
+
+try:
+    from xgboost import XGBClassifier
+    XGBOOST_AVAILABLE = True
+except ImportError:
+    XGBOOST_AVAILABLE = False
+
 # Add project root to Python path so utils module can be found
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
@@ -719,8 +740,11 @@ elif page == "Model Training":
         st.subheader("🤖 Model Configuration")
         
         test_size_pct = st.slider("Test Set Size (%)", min_value=10, max_value=50, value=20, step=5) / 100.0
-        model_choice = st.selectbox("Select Machine Learning Algorithm", 
-                                   ["Random Forest", "Logistic Regression", "Decision Tree", "XGBoost"])
+        model_options = ["Random Forest", "Logistic Regression", "Decision Tree"]
+        if XGBOOST_AVAILABLE:
+            model_options.append("XGBoost")
+        
+        model_choice = st.selectbox("Select Machine Learning Algorithm", model_options)
         
         if model_choice == "Random Forest":
             col1, col2 = st.columns(2)
@@ -760,10 +784,10 @@ elif page == "Model Training":
                     from sklearn.ensemble import RandomForestClassifier
                     from sklearn.linear_model import LogisticRegression
                     from sklearn.tree import DecisionTreeClassifier
-                    try:
+                    if XGBOOST_AVAILABLE:
                         from xgboost import XGBClassifier
-                    except ImportError:
-                        st.error("XGBoost not installed. Please install it with: pip install xgboost")
+                    elif model_choice == "XGBoost":
+                        st.error("XGBoost not available in this deployment. Please choose another algorithm.")
                         st.stop()
                     from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
                     import joblib

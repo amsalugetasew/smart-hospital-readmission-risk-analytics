@@ -5,21 +5,22 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import json
-from streamlit_option_menu import option_menu
 import os
-import subprocess
-import time
-import socket
 import sys
 
 # Optional imports with fallbacks
+try:
+    from streamlit_option_menu import option_menu
+    OPTION_MENU_AVAILABLE = True
+except ImportError:
+    OPTION_MENU_AVAILABLE = False
+
 try:
     import matplotlib.pyplot as plt
     import seaborn as sns
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
-    st.warning("⚠️ Matplotlib/Seaborn not available. Some visualizations may be limited.")
 
 try:
     import shap
@@ -33,6 +34,32 @@ try:
 except ImportError:
     XGBOOST_AVAILABLE = False
 
+try:
+    import joblib
+    JOBLIB_AVAILABLE = True
+except ImportError:
+    JOBLIB_AVAILABLE = False
+
+try:
+    import openpyxl
+    OPENPYXL_AVAILABLE = True
+except ImportError:
+    OPENPYXL_AVAILABLE = False
+
+try:
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.tree import DecisionTreeClassifier
+    from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler, OneHotEncoder, LabelEncoder
+    from sklearn.impute import SimpleImputer
+    from sklearn.compose import ColumnTransformer
+    from sklearn.pipeline import Pipeline
+    from sklearn.model_selection import train_test_split
+    from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+    SKLEARN_AVAILABLE = True
+except ImportError:
+    SKLEARN_AVAILABLE = False
+
 # Add project root to Python path so utils module can be found
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
@@ -40,16 +67,11 @@ if project_root not in sys.path:
 
 @st.cache_resource
 def start_backend():
-    def is_port_in_use(port):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            return s.connect_ex(('127.0.0.1', port)) == 0
-            
-    if not is_port_in_use(8000):
-        print("Starting backend server...")
-        subprocess.Popen(["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"])
-        time.sleep(3)
+    """Disabled for Streamlit Cloud deployment"""
+    pass
 
-start_backend()
+# Disabled for cloud deployment
+# start_backend()
 
 # Configure page
 st.set_page_config(
@@ -193,28 +215,36 @@ with st.sidebar:
         st.error("🔴 Backend Disconnected")
         st.info(f"URL: {API_URL}")
     
-    page = option_menu(
-        menu_title=None,
-        options=["Overview", "EDA", "Preprocessing", "Model Training", "Patient Risk Analysis", "Analytics Dashboard", "Model Performance"],
-        icons=["house", "bar-chart", "gear", "cpu", "activity", "graph-up", "speedometer2"],
-        menu_icon="cast",
-        default_index=0,
-        styles={
-            "container": {"padding": "0!important", "background-color": "transparent"},
-            "icon": {"color": "#008080", "font-size": "18px"},
-            "nav-link": {
-                "font-size": "16px",
-                "text-align": "left",
-                "margin": "5px 0",
-                "color": "#1e293b",
-                "--hover-color": "#ff00ff",
-            },
-            "nav-link-selected": {
-                "background-color": "#008080",
-                "color": "white",
-            },
-        }
-    )
+    # Navigation
+    if OPTION_MENU_AVAILABLE:
+        page = option_menu(
+            menu_title=None,
+            options=["Overview", "EDA", "Preprocessing", "Model Training", "Patient Risk Analysis", "Analytics Dashboard", "Model Performance"],
+            icons=["house", "bar-chart", "gear", "cpu", "activity", "graph-up", "speedometer2"],
+            menu_icon="cast",
+            default_index=0,
+            styles={
+                "container": {"padding": "0!important", "background-color": "transparent"},
+                "icon": {"color": "#008080", "font-size": "18px"},
+                "nav-link": {
+                    "font-size": "16px",
+                    "text-align": "left",
+                    "margin": "5px 0",
+                    "color": "#1e293b",
+                    "--hover-color": "#ff00ff",
+                },
+                "nav-link-selected": {
+                    "background-color": "#008080",
+                    "color": "white",
+                },
+            }
+        )
+    else:
+        # Fallback navigation using selectbox
+        page = st.selectbox(
+            "Navigate to:",
+            ["Overview", "EDA", "Preprocessing", "Model Training", "Patient Risk Analysis", "Analytics Dashboard", "Model Performance"]
+        )
 
 # Dataset path
 DATASET_PATH = "data/hospital_readmission_dataset.csv"
@@ -234,99 +264,60 @@ if page == "Overview":
     with tab2:
         st.markdown("Upload your own CSV or Excel file to train models on your hospital's data.")
         
+        if not OPENPYXL_AVAILABLE:
+            st.warning("⚠️ Excel file support not available. Please use CSV files only.")
+        
         uploaded_file = st.file_uploader(
-            "Choose a CSV or Excel file",
-            type=['csv', 'xlsx', 'xls'],
+            "Choose a CSV file" + (" or Excel file" if OPENPYXL_AVAILABLE else ""),
+            type=['csv'] + (['xlsx', 'xls'] if OPENPYXL_AVAILABLE else []),
             help="File must contain the 14 required columns. See DATA_UPLOAD_GUIDE.md for details."
         )
         
         if uploaded_file is not None:
-            # Load and validate uploaded file
-            from utils.data_upload import load_uploaded_file, validate_dataset_columns, standardize_dataset, get_dataset_summary, save_uploaded_dataset
-            
-            with st.spinner("Loading and validating your dataset..."):
-                try:
-                    # Load file
-                    df_uploaded = load_uploaded_file(uploaded_file)
+            try:
+                # Simple file loading without utils module
+                if uploaded_file.name.endswith('.csv'):
+                    df_uploaded = pd.read_csv(uploaded_file)
+                elif OPENPYXL_AVAILABLE and uploaded_file.name.endswith(('.xlsx', '.xls')):
+                    df_uploaded = pd.read_excel(uploaded_file)
+                else:
+                    st.error("Unsupported file format")
+                    df_uploaded = None
+                
+                if df_uploaded is not None:
+                    st.success(f"✅ File loaded successfully! ({len(df_uploaded)} rows, {len(df_uploaded.columns)} columns)")
                     
-                    if df_uploaded is not None:
-                        # Validate dataset
-                        is_valid, message, validation_info = validate_dataset_columns(df_uploaded)
+                    # Basic validation
+                    required_cols = ['season', 'age', 'gender', 'region', 'primary_diagnosis',
+                                   'comorbidities_count', 'length_of_stay', 'treatment_type',
+                                   'medications_count', 'followup_visits_last_year', 'prev_readmissions',
+                                   'insurance_type', 'discharge_disposition', 'readmission_risk_score']
+                    
+                    missing_cols = [col for col in required_cols if col not in df_uploaded.columns]
+                    
+                    if missing_cols:
+                        st.error(f"❌ Missing required columns: {', '.join(missing_cols)}")
+                    else:
+                        st.success("✅ All required columns found!")
                         
-                        if is_valid:
-                            st.success(f"✅ {message}")
-                            
-                            # Show validation warnings if any
-                            if 'warnings' in validation_info and validation_info['warnings']:
-                                with st.expander("⚠️ Data Validation Warnings", expanded=False):
-                                    for warning in validation_info['warnings']:
-                                        st.warning(warning)
-                                    st.info("These warnings won't prevent processing, but you may want to review your data.")
-                            
-                            # Standardize dataset
-                            df_clean = standardize_dataset(df_uploaded)
-                            
-                            # Get summary
-                            summary = get_dataset_summary(df_clean)
-                            
-                            # Display summary
-                            st.write("### 📋 Dataset Summary")
-                            col1, col2, col3, col4 = st.columns(4)
-                            col1.metric("Total Rows", f"{summary['total_rows']:,}")
-                            col2.metric("Total Columns", summary['total_columns'])
-                            col3.metric("Missing Values", summary['missing_values'])
-                            col4.metric("Duplicate Rows", summary['duplicate_rows'])
-                            
-                            # Show data preview
-                            with st.expander("👀 Data Preview", expanded=False):
-                                st.dataframe(df_clean.head(10))
-                            
-                            # Save dataset option
-                            if st.button("💾 Save Dataset for Training", type="primary"):
-                                saved_path = save_uploaded_dataset(df_clean, "uploaded_dataset.csv")
-                                if saved_path:
-                                    st.success(f"✅ Dataset saved successfully!")
-                                    st.info("You can now use this dataset in Preprocessing and Model Training pages.")
-                                    # Update the global dataset path
-                                    st.session_state['custom_dataset_path'] = saved_path
-                                    st.rerun()
-                        else:
-                            st.error(f"❌ {message}")
-                            
-                            # Show validation details
-                            with st.expander("🔍 Validation Details", expanded=True):
-                                st.write(f"**Required columns found:** {validation_info['required_columns_found']}/{validation_info['required_columns_total']}")
-                                if validation_info['missing_columns']:
-                                    st.write(f"**Missing columns:** {', '.join(validation_info['missing_columns'])}")
-                                if validation_info['extra_columns']:
-                                    st.write(f"**Extra columns:** {', '.join(validation_info['extra_columns'])}")
-                            
-                            # Show sample data format
-                            st.write("### 📋 Required Data Format")
-                            st.markdown("Your dataset must include these columns:")
-                            sample_data = {
-                                'season': ['Spring', 'Summer', 'Fall'],
-                                'age': [65, 45, 78],
-                                'gender': ['Male', 'Female', 'Male'],
-                                'region': ['North', 'South', 'Central'],
-                                'primary_diagnosis': ['Diabetes', 'Hypertension', 'Heart Disease'],
-                                'comorbidities_count': [2, 1, 3],
-                                'length_of_stay': [5, 3, 7],
-                                'treatment_type': ['Medical', 'Surgical', 'Medical'],
-                                'medications_count': [5, 3, 8],
-                                'followup_visits_last_year': [3, 2, 4],
-                                'prev_readmissions': [1, 0, 2],
-                                'insurance_type': ['Private', 'Medicare', 'Medicaid'],
-                                'discharge_disposition': ['Home', 'Rehab', 'Home'],
-                                'readmission_risk_score': [0.5, 0.3, 0.8],
-                                'label': [1, 0, 1]  # Optional: 0=Not Readmitted, 1=Readmitted
-                            }
-                            st.dataframe(pd.DataFrame(sample_data))
-                            
-                except Exception as e:
-                    st.error(f"Error processing file: {str(e)}")
+                        # Show preview
+                        with st.expander("👀 Data Preview", expanded=False):
+                            st.dataframe(df_uploaded.head(10))
+                        
+                        # Save option (simplified)
+                        if st.button("💾 Save Dataset for Training", type="primary"):
+                            try:
+                                df_uploaded.to_csv("data/uploaded_dataset.csv", index=False)
+                                st.success("✅ Dataset saved successfully!")
+                                st.session_state['custom_dataset_path'] = "data/uploaded_dataset.csv"
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error saving dataset: {e}")
+                        
+            except Exception as e:
+                st.error(f"Error processing file: {str(e)}")
         else:
-            st.info("👆 Please upload a CSV or Excel file to continue with custom data")
+            st.info("👆 Please upload a CSV file to continue with custom data")
     
     st.divider()
     
@@ -577,6 +568,13 @@ elif page == "Preprocessing":
     st.title("Interactive Data Preprocessing")
     st.markdown("Configure how to handle missing values, scale numerical features, and encode categorical variables.")
     
+    if not SKLEARN_AVAILABLE:
+        st.error("❌ Scikit-learn not available. Data preprocessing is disabled in this deployment.")
+        st.info("This is a frontend-only deployment. For full functionality, please run locally or deploy with a backend.")
+        st.stop()
+    
+    # Rest of preprocessing code...
+    
     # Check for custom dataset from Overview page
     if 'custom_dataset_path' in st.session_state:
         dataset_path = st.session_state['custom_dataset_path']
@@ -703,6 +701,13 @@ elif page == "Preprocessing":
 elif page == "Model Training":
     st.title("Automated Model Training")
     st.markdown("Train the model using your preprocessed dataset.")
+    
+    if not SKLEARN_AVAILABLE:
+        st.error("❌ Scikit-learn not available. Model training is disabled in this deployment.")
+        st.info("This is a frontend-only deployment. For full functionality, please run locally or deploy with a backend.")
+        st.stop()
+    
+    # Rest of model training code...
     
     # Check if we have a dataset to work with
     dataset_available = False

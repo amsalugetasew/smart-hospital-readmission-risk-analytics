@@ -21,6 +21,19 @@ This platform helps healthcare professionals:
 - View probability score (0-100%) and risk category (Low/Medium/High)
 - See feature importance using SHAP explainability
 
+**Risk Category Ranges:**
+- 🟢 **Low Risk**: 0% - 33% probability of readmission
+- 🟡 **Medium Risk**: 33% - 66% probability of readmission
+- 🔴 **High Risk**: 66% - 100% probability of readmission
+
+**Prediction Modes:**
+- **📝 Single Patient**: Manual form entry for individual predictions
+- **📊 Batch Prediction**: Upload CSV/Excel files for multiple patients at once
+  - Process 100s-1000s of patients in minutes
+  - Download results in CSV or Excel format
+  - View summary statistics and visualizations
+  - Color-coded results table (green/yellow/red)
+
 ### 2. 📊 Interactive Analytics Dashboard
 - Real-time hospital statistics (total patients, readmission rate, avg length of stay)
 - High-risk patient identification (risk score > 0.7)
@@ -261,6 +274,59 @@ docker run -p 8000:8000 -p 8501:8501 smart-hospital
 docker build -t smart-hospital .
 docker run -p 8000:8000 -p 8501:8501 smart-hospital
 ```
+
+---
+
+## 📊 Risk Category Classification
+
+The system classifies patients into three risk categories based on their predicted readmission probability:
+
+### 🟢 Low Risk (0% - 33%)
+- **Interpretation**: Patient has a low probability of readmission
+- **Recommendation**: Standard discharge planning and follow-up care
+- **Action**: Monitor as per normal protocol
+- **Example**: Probability = 25% → Low Risk
+
+### 🟡 Medium Risk (33% - 66%)
+- **Interpretation**: Patient has a moderate probability of readmission
+- **Recommendation**: Enhanced discharge planning and closer follow-up
+- **Action**: Consider additional patient education and support services
+- **Example**: Probability = 50% → Medium Risk
+
+### 🔴 High Risk (66% - 100%)
+- **Interpretation**: Patient has a high probability of readmission
+- **Recommendation**: Intensive discharge planning and intervention
+- **Action**: Implement readmission prevention strategies:
+  - Schedule early follow-up appointments
+  - Arrange home health services
+  - Provide medication reconciliation
+  - Ensure patient/family education
+  - Consider care coordination programs
+- **Example**: Probability = 75% → High Risk
+
+### Risk Calculation Logic
+
+```python
+if probability < 0.33:
+    risk_category = "Low Risk"
+elif probability < 0.66:
+    risk_category = "Medium Risk"
+else:
+    risk_category = "High Risk"
+```
+
+### Visual Indicators
+
+The system uses color coding throughout the interface:
+- 🟢 **Green** = Low Risk (Safe)
+- 🟡 **Yellow/Orange** = Medium Risk (Caution)
+- 🔴 **Red** = High Risk (Alert)
+
+This color scheme is consistent across:
+- Single patient predictions
+- Batch prediction results
+- Analytics dashboard
+- Risk distribution charts
 
 ---
 

@@ -195,32 +195,57 @@ def get_analytics():
         }
         
 def get_prediction(data):
-    try:
-        response = requests.post(f"{API_URL}/predict", json=data, timeout=30)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            st.error(f"API Error ({response.status_code}): {response.text}")
-            return None
-    except requests.exceptions.ConnectionError:
-        # Try embedded prediction as fallback
+    """Make prediction with retry logic for better reliability"""
+    max_retries = 3
+    
+    for attempt in range(max_retries):
         try:
-            from frontend.embedded_predictor import embedded_predictor
-            st.info("🔄 Using embedded model (backend not available)")
-            return embedded_predictor.predict(data)
+            response = requests.post(f"{API_URL}/predict", json=data, timeout=30)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                if attempt < max_retries - 1:
+                    st.warning(f"Backend returned status {response.status_code}, retrying...")
+                    import time
+                    time.sleep(1)
+                else:
+                    st.error(f"API Error ({response.status_code}): {response.text}")
+                    return None
+                    
+        except requests.exceptions.ConnectionError:
+            if attempt < max_retries - 1:
+                st.warning(f"Connection failed, retrying... ({attempt + 1}/{max_retries})")
+                import time
+                time.sleep(1)
+            else:
+                # Try embedded prediction as fallback after all retries
+                st.warning("⚠️ Backend API not responding after multiple attempts.")
+                try:
+                    from frontend.embedded_predictor import embedded_predictor
+                    st.info("🔄 Using embedded model as fallback")
+                    return embedded_predictor.predict(data)
+                except Exception as e:
+                    st.error(f"❌ Both backend API and embedded model failed: {str(e)}")
+                    st.info("💡 Please ensure backend is running:")
+                    st.code("uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload")
+                    st.info(f"💡 Backend URL: {API_URL}")
+                    return None
+                    
+        except requests.exceptions.Timeout:
+            if attempt < max_retries - 1:
+                st.warning(f"Request timed out, retrying... ({attempt + 1}/{max_retries})")
+                import time
+                time.sleep(1)
+            else:
+                st.error("⏱️ Request timed out after multiple attempts.")
+                return None
+                
         except Exception as e:
-            st.error(f"❌ Both backend API and embedded model failed: {str(e)}")
-            st.info("💡 Please ensure the model is trained: `python train_model.py`")
+            st.error(f"❌ Unexpected error: {e}")
             st.info(f"💡 Backend URL: {API_URL}")
-            st.info("💡 Try running: `uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload`")
             return None
-    except requests.exceptions.Timeout:
-        st.error("⏱️ Request timed out. The model might be taking too long to respond.")
-        return None
-    except Exception as e:
-        st.error(f"❌ Unexpected error: {e}")
-        st.info(f"💡 Backend URL: {API_URL}")
-        return None
+    
+    return None
 
 # Sidebar navigation
 with st.sidebar:
@@ -878,23 +903,50 @@ elif page == "Model Training":
                     with open("models/metrics.json", "w") as f:
                         json.dump(metrics, f)
                         
-                    # Reload model in backend
-                    try:
-                        response = requests.post(f"{API_URL}/reload-model", timeout=10)
-                        if response.status_code == 200:
-                            st.success(f"✅ {model_choice} trained successfully and backend API reloaded!")
-                        else:
-                            st.warning(f"⚠️ {model_choice} trained successfully, but backend API failed to reload. Status: {response.status_code}")
-                            st.info("💡 The model files are saved. You can restart the backend to load the new model.")
-                    except requests.exceptions.ConnectionError:
-                        st.warning("⚠️ Model trained successfully, but could not connect to backend API to reload.")
-                        st.info("💡 The model files are saved. Start the backend to use the new model.")
-                    except requests.exceptions.Timeout:
-                        st.warning("⚠️ Model trained successfully, but backend reload timed out.")
-                        st.info("💡 The model files are saved. The backend may still be loading the model.")
-                    except Exception as e:
-                        st.warning(f"⚠️ Model trained successfully, but backend reload failed: {str(e)}")
-                        st.info("💡 The model files are saved. You can restart the backend to load the new model.")
+                    # Reload model in backend with retry logic
+                    reload_success = False
+                    max_retries = 3
+                    
+                    for attempt in range(max_retries):
+                        try:
+                            st.info(f"🔄 Reloading backend model (attempt {attempt + 1}/{max_retries})...")
+                            response = requests.post(f"{API_URL}/reload-model", timeout=30)
+                            
+                            if response.status_code == 200:
+                                st.success(f"✅ {model_choice} trained successfully and backend API reloaded!")
+                                reload_success = True
+                                break
+                            else:
+                                st.warning(f"⚠️ Backend returned status {response.status_code}")
+                                if attempt < max_retries - 1:
+                                    import time
+                                    time.sleep(2)
+                                    
+                        except requests.exceptions.ConnectionError as e:
+                            if attempt < max_retries - 1:
+                                st.warning(f"Connection failed, retrying... ({attempt + 1}/{max_retries})")
+                                import time
+                                time.sleep(2)
+                            else:
+                                st.error(f"❌ Could not connect to backend after {max_retries} attempts")
+                                st.info("💡 Please check if backend is running: http://localhost:8000/health")
+                                
+                        except requests.exceptions.Timeout:
+                            if attempt < max_retries - 1:
+                                st.warning(f"Request timed out, retrying... ({attempt + 1}/{max_retries})")
+                                import time
+                                time.sleep(2)
+                            else:
+                                st.error("❌ Backend reload timed out after multiple attempts")
+                                
+                        except Exception as e:
+                            st.error(f"❌ Unexpected error: {str(e)}")
+                            break
+                    
+                    if not reload_success:
+                        st.warning("⚠️ Model trained and saved, but backend reload failed.")
+                        st.info("💡 Solution: Restart the backend manually to load the new model.")
+                        st.code("uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload")
                     
                     # Display metrics
                     st.write("### Model Evaluation Results")
@@ -938,30 +990,26 @@ elif page == "Patient Risk Analysis":
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.subheader("Demographics")
             age = st.number_input("Age", min_value=18, max_value=120, value=65)
             gender = st.selectbox("Gender", ["Male", "Female"])
             region = st.selectbox("Region", ["North", "South", "East", "West"])
             season = st.selectbox("Season", ["Spring", "Summer", "Fall", "Winter"])
-            
+            insurance_type = st.selectbox("Insurance Type", ["Private", "Medicare", "Medicaid", "Self-Pay"])
         with col2:
-            st.subheader("Clinical Information")
             primary_diagnosis = st.selectbox("Primary Diagnosis", 
                 ["Diabetes", "Hypertension", "Heart Failure", "Stroke", "COPD", 
                  "Pneumonia", "Kidney Disease", "Cancer", "Other"])
             comorbidities_count = st.number_input("Number of Comorbidities", min_value=0, max_value=20, value=2)
             length_of_stay = st.number_input("Length of Stay (days)", min_value=1, max_value=90, value=5)
             readmission_risk_score = st.slider("Readmission Risk Score", min_value=0.0, max_value=1.0, value=0.5, step=0.01)
-            
+            discharge_disposition = st.selectbox("Discharge Disposition", 
+                ["Home", "Home Health", "Skilled Nursing", "Rehab", "Other"])           
         with col3:
-            st.subheader("Treatment & Follow-up")
             treatment_type = st.selectbox("Treatment Type", ["Medical", "Surgical", "Interventional"])
             medications_count = st.number_input("Number of Medications", min_value=0, max_value=50, value=5)
             followup_visits_last_year = st.number_input("Follow-up Visits (Last Year)", min_value=0, max_value=50, value=3)
             prev_readmissions = st.number_input("Previous Readmissions", min_value=0, max_value=20, value=1)
-            insurance_type = st.selectbox("Insurance Type", ["Private", "Medicare", "Medicaid", "Self-Pay"])
-            discharge_disposition = st.selectbox("Discharge Disposition", 
-                ["Home", "Home Health", "Skilled Nursing", "Rehab", "Other"])
+            
             
         submit = st.form_submit_button("Predict Risk", use_container_width=True)
         

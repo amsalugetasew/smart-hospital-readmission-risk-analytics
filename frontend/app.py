@@ -157,18 +157,22 @@ print(f"🔗 Frontend connecting to: {API_URL}")
 def check_backend_health():
     """Check if backend is running and healthy"""
     try:
-        response = requests.get(f"{API_URL}/health", timeout=3)
+        # Increased timeout to 10 seconds for more reliability
+        response = requests.get(f"{API_URL}/health", timeout=10)
         if response.status_code == 200:
             data = response.json()
-            return data.get("status") == "healthy" and data.get("model_loaded", False)
-    except requests.exceptions.ConnectionError:
-        print(f"❌ Connection error to {API_URL}/health")
+            is_healthy = data.get("status") == "healthy" and data.get("model_loaded", False)
+            if is_healthy:
+                print(f"✅ Backend health check passed: {API_URL}")
+            return is_healthy
+    except requests.exceptions.ConnectionError as e:
+        print(f"❌ Connection error to {API_URL}/health: {e}")
         return False
     except requests.exceptions.Timeout:
-        print(f"⏱️ Timeout connecting to {API_URL}/health")
+        print(f"⏱️ Timeout connecting to {API_URL}/health (10s)")
         return False
     except Exception as e:
-        print(f"❌ Error checking backend health: {e}")
+        print(f"❌ Error checking backend health: {type(e).__name__}: {e}")
         return False
     return False
 
@@ -255,16 +259,59 @@ with st.sidebar:
     backend_healthy = check_backend_health()
     if backend_healthy:
         st.success("🟢 Backend Connected")
+        with st.expander("ℹ️ Connection Info", expanded=False):
+            st.write(f"**Backend URL:** {API_URL}")
+            st.write("**Status:** Connected and healthy")
+            st.write("**Model:** Loaded and ready")
+            if st.button("🔄 Test Connection"):
+                with st.spinner("Testing connection..."):
+                    try:
+                        response = requests.get(f"{API_URL}/health", timeout=5)
+                        if response.status_code == 200:
+                            st.success("✅ Connection test passed!")
+                            st.json(response.json())
+                        else:
+                            st.error(f"❌ Status: {response.status_code}")
+                    except Exception as e:
+                        st.error(f"❌ Error: {e}")
     else:
-        st.warning("🟡 Backend Starting...")
-        st.info("The backend API is starting up. Some features may be limited until connection is established.")
+        st.error("🔴 Backend Disconnected")
+        st.warning("⚠️ Backend API is not responding. Some features will be limited.")
         
         # Show connection details
-        with st.expander("🔧 Connection Details", expanded=False):
+        with st.expander("🔧 Connection Troubleshooting", expanded=True):
             st.write(f"**Backend URL:** {API_URL}")
-            st.write("**Status:** Attempting to connect...")
-            if st.button("🔄 Retry Connection"):
-                st.rerun()
+            st.write("**Status:** Not responding")
+            st.write("")
+            st.write("**Troubleshooting Steps:**")
+            st.write("1. Check if backend is running:")
+            st.code("uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload", language="bash")
+            st.write("2. Test backend manually:")
+            st.code("curl http://localhost:8000/health", language="bash")
+            st.write("3. Check if port 8000 is in use:")
+            st.code("netstat -ano | findstr :8000", language="bash")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🔄 Retry Connection", use_container_width=True):
+                    st.rerun()
+            with col2:
+                if st.button("🧪 Test Connection", use_container_width=True):
+                    with st.spinner("Testing..."):
+                        try:
+                            response = requests.get(f"{API_URL}/health", timeout=10)
+                            if response.status_code == 200:
+                                st.success("✅ Backend is responding!")
+                                st.json(response.json())
+                                st.info("Click 'Retry Connection' to refresh the status")
+                            else:
+                                st.error(f"❌ Status: {response.status_code}")
+                        except requests.exceptions.ConnectionError:
+                            st.error("❌ Connection refused. Backend is not running.")
+                        except requests.exceptions.Timeout:
+                            st.error("❌ Connection timeout. Backend is slow or not responding.")
+                        except Exception as e:
+                            st.error(f"❌ Error: {type(e).__name__}: {e}")
     
     # Navigation
     if OPTION_MENU_AVAILABLE:

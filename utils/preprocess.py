@@ -8,8 +8,25 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 import os
 
-def load_data(filepath="data/hospital_readmission_dataset.csv"):
-    """Load the hospital readmission dataset."""
+def load_data(filepath=None):
+    """
+    Load the hospital readmission dataset.
+    Checks for uploaded dataset first, then falls back to default.
+    """
+    if filepath is None:
+        # Check for uploaded dataset first
+        uploaded_path = "data/uploaded_dataset.csv"
+        default_path = "data/hospital_readmission_dataset.csv"
+        
+        if os.path.exists(uploaded_path):
+            print(f"   📊 Using uploaded dataset: {uploaded_path}")
+            filepath = uploaded_path
+        elif os.path.exists(default_path):
+            print(f"   📊 Using default dataset: {default_path}")
+            filepath = default_path
+        else:
+            raise FileNotFoundError("No dataset found. Please ensure data/hospital_readmission_dataset.csv exists.")
+    
     return pd.read_csv(filepath)
 
 def preprocess_data(df, target_col="label", save_pipeline=True, pipeline_path="models/preprocessor.joblib"):

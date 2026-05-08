@@ -293,9 +293,46 @@ def get_prediction(data):
     
     return None
 
+# Dataset path management - Initialize before sidebar
+DEFAULT_DATASET_PATH = "data/hospital_readmission_dataset.csv"
+UPLOADED_DATASET_PATH = "data/uploaded_dataset.csv"
+
+# Initialize session state for dataset path
+if 'active_dataset_path' not in st.session_state:
+    # Check if uploaded dataset exists
+    if os.path.exists(UPLOADED_DATASET_PATH):
+        st.session_state['active_dataset_path'] = UPLOADED_DATASET_PATH
+        st.session_state['using_uploaded_data'] = True
+    else:
+        st.session_state['active_dataset_path'] = DEFAULT_DATASET_PATH
+        st.session_state['using_uploaded_data'] = False
+
+# Get current active dataset path
+DATASET_PATH = st.session_state['active_dataset_path']
+
 # Sidebar navigation
 with st.sidebar:
     st.markdown('<div style="text-align: left; margin-bottom: 0px;"><h2>🏥 Hospital Readmission</h2></div>', unsafe_allow_html=True)
+    
+    # Dataset indicator
+    st.markdown("---")
+    if st.session_state.get('using_uploaded_data', False):
+        st.info("📊 **Active Dataset:** Uploaded Data")
+        if os.path.exists(DATASET_PATH):
+            try:
+                df_check = pd.read_csv(DATASET_PATH)
+                st.caption(f"📁 {len(df_check):,} records")
+            except:
+                pass
+    else:
+        st.success("📊 **Active Dataset:** Default Data")
+        if os.path.exists(DATASET_PATH):
+            try:
+                df_check = pd.read_csv(DATASET_PATH)
+                st.caption(f"📁 {len(df_check):,} records")
+            except:
+                pass
+    st.markdown("---")
     
     # Backend status indicator
     backend_healthy = check_backend_health()
@@ -402,23 +439,41 @@ with st.sidebar:
             ["Overview", "EDA", "Preprocessing", "Model Training", "Patient Risk Analysis", "Analytics Dashboard", "Model Performance"]
         )
 
-# Dataset path
-DATASET_PATH = "data/hospital_readmission_dataset.csv"
-
 if page == "Overview":
     st.title("Hospital Readmission Overview")
     
     # Data Upload Section
     st.subheader("📤 Data Management")
     
+    # Show current dataset status
+    if st.session_state.get('using_uploaded_data', False):
+        st.info(f"🔵 **Currently using uploaded dataset**: `{os.path.basename(DATASET_PATH)}`")
+        col1, col2 = st.columns([3, 1])
+        with col2:
+            if st.button("🔄 Switch to Default Dataset"):
+                st.session_state['active_dataset_path'] = DEFAULT_DATASET_PATH
+                st.session_state['using_uploaded_data'] = False
+                st.success("✅ Switched to default dataset!")
+                st.rerun()
+    else:
+        st.info(f"🟢 **Currently using default dataset**: `{os.path.basename(DATASET_PATH)}`")
+    
+    st.divider()
+    
     # Create tabs for default dataset and custom upload
     tab1, tab2 = st.tabs(["📊 Default Dataset", "📁 Upload Custom Dataset"])
     
     with tab1:
         st.info("Using the default hospital readmission dataset with 8,000 patient records.")
+        if os.path.exists(DEFAULT_DATASET_PATH):
+            df_default = pd.read_csv(DEFAULT_DATASET_PATH)
+            st.write(f"**Records:** {len(df_default):,}")
+            st.write(f"**Features:** {len(df_default.columns)}")
+            if not st.session_state.get('using_uploaded_data', False):
+                st.success("✅ This dataset is currently active")
         
     with tab2:
-        st.markdown("Upload your own CSV or Excel file to train models on your hospital's data.")
+        st.markdown("Upload your own CSV or Excel file to use across all pages (Overview, EDA, Preprocessing, Model Training, Analytics Dashboard).")
         
         if not OPENPYXL_AVAILABLE:
             st.warning("⚠️ Excel file support not available. Please use CSV files only.")
@@ -426,7 +481,8 @@ if page == "Overview":
         uploaded_file = st.file_uploader(
             "Choose a CSV file" + (" or Excel file" if OPENPYXL_AVAILABLE else ""),
             type=['csv'] + (['xlsx', 'xls'] if OPENPYXL_AVAILABLE else []),
-            help="File must contain the 14 required columns. See DATA_UPLOAD_GUIDE.md for details."
+            help="File must contain the 14 required columns for training. The 'label' column (0 or 1) is required for model training.",
+            key="data_uploader"
         )
         
         if uploaded_file is not None:
@@ -453,27 +509,54 @@ if page == "Overview":
                     
                     if missing_cols:
                         st.error(f"❌ Missing required columns: {', '.join(missing_cols)}")
+                        st.info("💡 Required columns: " + ", ".join(required_cols))
                     else:
                         st.success("✅ All required columns found!")
+                        
+                        # Check for label column
+                        if 'label' not in df_uploaded.columns:
+                            st.warning("⚠️ 'label' column not found. This column is required for model training (0 = Not Readmitted, 1 = Readmitted).")
                         
                         # Show preview
                         with st.expander("👀 Data Preview", expanded=False):
                             st.dataframe(df_uploaded.head(10))
                         
-                        # Save option (simplified)
-                        if st.button("💾 Save Dataset for Training", type="primary"):
-                            try:
-                                df_uploaded.to_csv("data/uploaded_dataset.csv", index=False)
-                                st.success("✅ Dataset saved successfully!")
-                                st.session_state['custom_dataset_path'] = "data/uploaded_dataset.csv"
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Error saving dataset: {e}")
+                        # Show statistics
+                        with st.expander("📊 Dataset Statistics", expanded=False):
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Total Records", f"{len(df_uploaded):,}")
+                            with col2:
+                                st.metric("Total Features", len(df_uploaded.columns))
+                            with col3:
+                                st.metric("Missing Values", df_uploaded.isna().sum().sum())
+                        
+                        # Save and activate option
+                        st.markdown("---")
+                        col1, col2 = st.columns([2, 1])
+                        with col1:
+                            st.markdown("**💾 Save and activate this dataset for all pages:**")
+                            st.caption("This will replace the current active dataset and apply to Overview, EDA, Preprocessing, Model Training, and Analytics Dashboard.")
+                        with col2:
+                            if st.button("💾 Save & Activate Dataset", type="primary", use_container_width=True):
+                                try:
+                                    # Save the uploaded dataset
+                                    df_uploaded.to_csv(UPLOADED_DATASET_PATH, index=False)
+                                    
+                                    # Update session state to use uploaded dataset
+                                    st.session_state['active_dataset_path'] = UPLOADED_DATASET_PATH
+                                    st.session_state['using_uploaded_data'] = True
+                                    
+                                    st.success("✅ Dataset saved and activated successfully!")
+                                    st.info("🔄 All pages will now use this dataset. Refreshing...")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error saving dataset: {e}")
                         
             except Exception as e:
                 st.error(f"Error processing file: {str(e)}")
         else:
-            st.info("👆 Please upload a CSV file to continue with custom data")
+            st.info("👆 Please upload a CSV or Excel file to continue with custom data")
     
     st.divider()
     
@@ -1671,8 +1754,8 @@ elif page == "Analytics Dashboard":
             readmission_counts = df['label'].value_counts()
             fig = px.pie(
                 values=readmission_counts.values,
-                names=['Not Readmitted', 'Readmitted'],
-                color_discrete_sequence=[HOSPITAL_COLORS['success'], HOSPITAL_COLORS['danger']],
+                names=['Readmitted', 'Not Readmitted'],
+                color_discrete_sequence=[HOSPITAL_COLORS['danger'], HOSPITAL_COLORS['success']],
                 hole=0.4
             )
             fig.update_traces(
@@ -1937,29 +2020,44 @@ elif page == "Analytics Dashboard":
             # Scatter Plot: Comorbidities vs Medications
             st.markdown("#### Comorbidities vs Medications (Risk Analysis)")
             df_sample = df.sample(min(1000, len(df)))  # Sample for performance
-            df_sample['Outcome'] = df_sample['label'].map({0: 'Not Readmitted', 1: 'Readmitted'})
             
-            fig = px.scatter(
-                df_sample,
-                x='comorbidities_count',
-                y='medications_count',
-                color='Outcome',
-                size='readmission_risk_score',
-                color_discrete_map={'Not Readmitted': HOSPITAL_COLORS['success'], 'Readmitted': HOSPITAL_COLORS['danger']},
-                labels={
-                    'comorbidities_count': 'Number of Comorbidities',
-                    'medications_count': 'Number of Medications',
-                    'readmission_risk_score': 'Risk Score'
-                },
-                hover_data=['age', 'length_of_stay', 'readmission_risk_score']
-            )
-            fig.update_layout(
-                height=450,
-                xaxis_title="Number of Comorbidities",
-                yaxis_title="Number of Medications",
-                legend_title="Outcome"
-            )
-            st.plotly_chart(fig, use_container_width=True)
+            # Handle missing values in readmission_risk_score
+            df_sample = df_sample.dropna(subset=['readmission_risk_score', 'comorbidities_count', 'medications_count'])
+            
+            if len(df_sample) > 0:
+                df_sample['Outcome'] = df_sample['label'].map({0: 'Not Readmitted', 1: 'Readmitted'})
+                
+                # Ensure risk score is positive and scale it for better visualization
+                df_sample['risk_size'] = df_sample['readmission_risk_score'] * 50 + 5  # Scale for visibility
+                
+                fig = px.scatter(
+                    df_sample,
+                    x='comorbidities_count',
+                    y='medications_count',
+                    color='Outcome',
+                    size='risk_size',
+                    color_discrete_map={'Not Readmitted': HOSPITAL_COLORS['success'], 'Readmitted': HOSPITAL_COLORS['danger']},
+                    labels={
+                        'comorbidities_count': 'Number of Comorbidities',
+                        'medications_count': 'Number of Medications',
+                        'readmission_risk_score': 'Risk Score'
+                    },
+                    hover_data=['age', 'length_of_stay', 'readmission_risk_score']
+                )
+                fig.update_layout(
+                    height=450,
+                    showlegend=True,
+                    hovermode='closest'
+                )
+                fig.update_traces(
+                    marker=dict(
+                        line=dict(width=0.5, color='white'),
+                        opacity=0.7
+                    )
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.warning("⚠️ Not enough valid data for scatter plot visualization.")
         
         with col2:
             # Heatmap: Correlation Matrix
@@ -1967,25 +2065,38 @@ elif page == "Analytics Dashboard":
             numeric_cols = ['age', 'comorbidities_count', 'length_of_stay', 
                           'medications_count', 'followup_visits_last_year', 
                           'prev_readmissions', 'readmission_risk_score', 'label']
-            corr_matrix = df[numeric_cols].corr()
             
-            fig = px.imshow(
-                corr_matrix,
-                labels=dict(color="Correlation"),
-                x=corr_matrix.columns,
-                y=corr_matrix.columns,
-                color_continuous_scale='RdBu_r',
-                zmin=-1,
-                zmax=1,
-                aspect="auto"
-            )
-            fig.update_layout(
-                height=450,
-                xaxis_title="",
-                yaxis_title=""
-            )
-            fig.update_xaxes(tickangle=-45)
-            st.plotly_chart(fig, use_container_width=True)
+            # Filter to only include columns that exist in the dataframe
+            numeric_cols = [col for col in numeric_cols if col in df.columns]
+            
+            if len(numeric_cols) > 1:
+                # Drop rows with NaN values for correlation calculation
+                df_corr = df[numeric_cols].dropna()
+                
+                if len(df_corr) > 0:
+                    corr_matrix = df_corr.corr()
+                    
+                    fig = px.imshow(
+                        corr_matrix,
+                        labels=dict(color="Correlation"),
+                        x=corr_matrix.columns,
+                        y=corr_matrix.columns,
+                        color_continuous_scale='RdBu_r',
+                        zmin=-1,
+                        zmax=1,
+                        aspect="auto"
+                    )
+                    fig.update_layout(
+                        height=450,
+                        xaxis_title="",
+                        yaxis_title=""
+                    )
+                    fig.update_xaxes(tickangle=-45)
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.warning("⚠️ Not enough valid data for correlation heatmap.")
+            else:
+                st.warning("⚠️ Not enough numeric columns for correlation analysis.")
         
         st.divider()
         

@@ -124,11 +124,19 @@ class EmbeddedPredictor:
     def get_analytics(self) -> Dict[str, Any]:
         """Get analytics data from the dataset"""
         try:
-            # Load dataset
-            df = pd.read_csv("data/hospital_readmission_dataset.csv")
+            # Check for uploaded dataset first, then fall back to default
+            uploaded_path = "data/uploaded_dataset.csv"
+            default_path = "data/hospital_readmission_dataset.csv"
+            
+            if os.path.exists(uploaded_path):
+                df = pd.read_csv(uploaded_path)
+            elif os.path.exists(default_path):
+                df = pd.read_csv(default_path)
+            else:
+                raise FileNotFoundError("No dataset found")
             
             total_patients = len(df)
-            readmission_rate = (df["label"] == 1).sum() / total_patients
+            readmission_rate = (df["label"] == 1).sum() / total_patients if "label" in df.columns else 0.0
             avg_los = df["length_of_stay"].mean()
             high_risk_percentage = (df["readmission_risk_score"] > 0.7).sum() / total_patients
             

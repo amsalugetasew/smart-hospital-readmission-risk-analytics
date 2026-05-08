@@ -71,19 +71,37 @@ def validate_dataset_columns(df: pd.DataFrame) -> Tuple[bool, str, Dict[str, Any
             'gender': ['male', 'female', 'm', 'f', 'man', 'woman'],
             'season': ['spring', 'summer', 'fall', 'winter', 'autumn'],
             'region': ['north', 'south', 'east', 'west', 'central', 'northeast', 'northwest', 'southeast', 'southwest', 'midwest'],
-            'treatment_type': ['medical', 'surgical', 'interventional', 'emergency', 'outpatient', 'inpatient'],
+            'treatment_type': ['medical', 'surgical', 'interventional', 'emergency', 'outpatient', 'inpatient', 
+                              'conservative', 'palliative', 'preventive', 'therapeutic', 'diagnostic', 'rehabilitative'],
             'insurance_type': ['private', 'medicare', 'medicaid', 'self-pay', 'self pay', 'commercial', 'government', 'uninsured'],
             'discharge_disposition': ['home', 'home health', 'skilled nursing', 'rehab', 'other', 'snf', 'nursing home', 'hospice', 'deceased', 'transfer']
         }
         
-        # Make validation more lenient - only warn about unusual values, don't fail
+        # Very lenient validation - only check for critical issues
         validation_warnings = []
-        for col, valid_values in categorical_validations.items():
+        
+        # Check for completely empty columns
+        for col in df.columns:
+            if df[col].isna().all():
+                validation_warnings.append(f"Column '{col}' is completely empty")
+        
+        # Check for suspicious data patterns
+        for col in ['gender', 'season', 'region', 'treatment_type', 'insurance_type', 'discharge_disposition']:
             if col in df.columns:
-                unique_values = df[col].str.lower().unique()
-                invalid_values = [v for v in unique_values if v not in valid_values and pd.notna(v)]
-                if invalid_values:
-                    validation_warnings.append(f"Unusual values in '{col}': {invalid_values}")
+                unique_values = df[col].dropna().astype(str).str.strip()
+                # Only warn about clearly problematic values
+                problematic = unique_values[
+                    (unique_values.str.len() == 0) |  # Empty strings
+                    (unique_values.str.len() > 100) |  # Extremely long values
+                    (unique_values.str.isdigit() & (unique_values.str.len() > 2))  # Long numeric codes where text expected
+                ].unique()
+                
+                if len(problematic) > 0:
+                    validation_warnings.append(f"Unusual values in '{col}': {list(problematic)[:5]}{'...' if len(problematic) > 5 else ''}")
+        
+        # Add informational message about flexibility
+        if len(validation_warnings) == 0:
+            validation_warnings.append("✅ All categorical values look reasonable. The system accepts a wide variety of values for each category.")
         
         # Add warnings to validation info but don't fail validation
         validation_info['warnings'] = validation_warnings
@@ -113,7 +131,10 @@ def standardize_dataset(df: pd.DataFrame) -> pd.DataFrame:
                   'southeast': 'Southeast', 'southwest': 'Southwest', 'midwest': 'Midwest'},
         'treatment_type': {'medical': 'Medical', 'surgical': 'Surgical', 
                           'interventional': 'Interventional', 'emergency': 'Emergency',
-                          'outpatient': 'Outpatient', 'inpatient': 'Inpatient'},
+                          'outpatient': 'Outpatient', 'inpatient': 'Inpatient',
+                          'conservative': 'Conservative', 'palliative': 'Palliative',
+                          'preventive': 'Preventive', 'therapeutic': 'Therapeutic',
+                          'diagnostic': 'Diagnostic', 'rehabilitative': 'Rehabilitative'},
         'insurance_type': {'private': 'Private', 'medicare': 'Medicare', 
                           'medicaid': 'Medicaid', 'self-pay': 'Self-Pay', 'self pay': 'Self-Pay',
                           'commercial': 'Private', 'government': 'Medicare', 'uninsured': 'Self-Pay'},
@@ -125,7 +146,10 @@ def standardize_dataset(df: pd.DataFrame) -> pd.DataFrame:
     
     for col, mapping in categorical_mappings.items():
         if col in df_clean.columns:
-            df_clean[col] = df_clean[col].str.lower().map(mapping).fillna(df_clean[col])
+            # Apply mapping where available, keep original values otherwise
+            df_clean[col] = df_clean[col].str.lower().map(mapping).fillna(
+                df_clean[col].str.title()  # Title case for unmapped values
+            )
     
     # Handle missing values
     numerical_cols = ['age', 'comorbidities_count', 'length_of_stay', 

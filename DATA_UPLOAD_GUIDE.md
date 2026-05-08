@@ -17,7 +17,7 @@ Your dataset must include these **14 required columns**:
 | `gender` | Patient gender | Male, Female (also accepts M, F, Man, Woman) |
 | `region` | Geographic region | North, South, East, West, Central, Northeast, Northwest, Southeast, Southwest, Midwest |
 | `primary_diagnosis` | Primary diagnosis | Diabetes, Hypertension, Heart Disease, Pneumonia, COPD, etc. (flexible) |
-| `treatment_type` | Type of treatment | Medical, Surgical, Interventional, Emergency, Outpatient, Inpatient |
+| `treatment_type` | Type of treatment | Medical, Surgical, Interventional, Emergency, Outpatient, Inpatient, Conservative, Palliative, Preventive, Therapeutic, Diagnostic, Rehabilitative |
 | `insurance_type` | Insurance type | Private, Medicare, Medicaid, Self-Pay, Commercial, Government, Uninsured |
 | `discharge_disposition` | Discharge destination | Home, Home Health, Skilled Nursing, Rehab, Other, Nursing Home, Hospice, Transfer |
 

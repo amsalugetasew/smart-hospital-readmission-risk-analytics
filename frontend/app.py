@@ -1294,74 +1294,468 @@ elif page == "Patient Risk Analysis":
                     st.warning("Feature importance not available for this prediction.")
 
 elif page == "Analytics Dashboard":
-    st.title("Analytics Dashboard")
+    st.title("🏥 Hospital Analytics Dashboard")
+    st.markdown("Comprehensive analytics with hospital-themed visualizations")
     
     try:
         df = pd.read_csv(DATASET_PATH)
         
+        # Hospital-themed color palette
+        HOSPITAL_COLORS = {
+            'primary': '#0066CC',      # Medical Blue
+            'success': '#00A86B',      # Medical Green
+            'warning': '#FF6B35',      # Medical Orange
+            'danger': '#DC143C',       # Medical Red
+            'info': '#20B2AA',         # Medical Teal
+            'purple': '#9370DB',       # Medical Purple
+            'navy': '#000080',         # Navy Blue
+            'gradient_safe': ['#00A86B', '#90EE90', '#98FB98'],  # Green gradient (safe)
+            'gradient_risk': ['#FFD700', '#FFA500', '#FF6347', '#DC143C'],  # Risk gradient
+            'gradient_blue': ['#E3F2FD', '#90CAF9', '#42A5F5', '#1E88E5', '#1565C0'],  # Blue gradient
+            'categorical': ['#0066CC', '#00A86B', '#FF6B35', '#9370DB', '#20B2AA', '#DC143C']
+        }
+        
+        # Key Metrics Section
+        st.markdown("### 📊 Key Performance Indicators")
+        col1, col2, col3, col4, col5 = st.columns(5)
+        
+        total_patients = len(df)
+        readmitted = (df['label'] == 1).sum()
+        readmission_rate = readmitted / total_patients
+        avg_los = df['length_of_stay'].mean()
+        high_risk = (df['readmission_risk_score'] > 0.7).sum()
+        
+        with col1:
+            st.metric("Total Patients", f"{total_patients:,}", 
+                     help="Total number of patients in the dataset")
+        with col2:
+            st.metric("Readmission Rate", f"{readmission_rate:.1%}", 
+                     delta=f"{readmitted:,} patients",
+                     delta_color="inverse",
+                     help="Percentage of patients readmitted")
+        with col3:
+            st.metric("Avg Length of Stay", f"{avg_los:.1f} days",
+                     help="Average hospital stay duration")
+        with col4:
+            st.metric("High Risk Patients", f"{high_risk:,}",
+                     delta=f"{high_risk/total_patients:.1%}",
+                     delta_color="inverse",
+                     help="Patients with risk score > 0.7")
+        with col5:
+            avg_age = df['age'].mean()
+            st.metric("Average Age", f"{avg_age:.0f} years",
+                     help="Mean patient age")
+        
+        st.divider()
+        
+        # Row 1: Readmission Overview
+        st.markdown("### 🎯 Readmission Overview")
         col1, col2 = st.columns(2)
         
         with col1:
-            st.subheader("Readmission by Primary Diagnosis")
-            diag_rates = df.groupby('primary_diagnosis')['label'].mean().sort_values()
-            fig = px.bar(x=diag_rates.values, y=diag_rates.index, orientation='h',
-                        labels={'x': 'Readmission Rate', 'y': 'Diagnosis'},
-                        color=diag_rates.values, color_continuous_scale='Reds')
-            fig.update_layout(xaxis_tickformat='.0%', showlegend=False)
+            # Pie Chart: Overall Readmission Distribution
+            st.markdown("#### Overall Readmission Distribution")
+            readmission_counts = df['label'].value_counts()
+            fig = px.pie(
+                values=readmission_counts.values,
+                names=['Not Readmitted', 'Readmitted'],
+                color_discrete_sequence=[HOSPITAL_COLORS['success'], HOSPITAL_COLORS['danger']],
+                hole=0.4
+            )
+            fig.update_traces(
+                textposition='inside',
+                textinfo='percent+label',
+                hovertemplate='<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>'
+            )
+            fig.update_layout(
+                showlegend=True,
+                height=400,
+                annotations=[dict(text=f'{total_patients:,}<br>Patients', x=0.5, y=0.5, font_size=16, showarrow=False)]
+            )
             st.plotly_chart(fig, use_container_width=True)
-            
-            st.subheader("Age Distribution by Readmission")
-            fig = px.histogram(df, x="age", color=df['label'].map({0: 'Not Readmitted', 1: 'Readmitted'}),
-                             barmode="overlay", nbins=30, color_discrete_sequence=["#00cc96", "#ef553b"])
-            st.plotly_chart(fig, use_container_width=True)
-            
+        
         with col2:
-            st.subheader("Impact of Previous Readmissions")
-            prev_rates = df.groupby('prev_readmissions')['label'].mean().reset_index()
-            fig = px.bar(prev_rates, x='prev_readmissions', y='label',
-                        labels={'label': 'Readmission Rate'},
-                        color='prev_readmissions', color_continuous_scale='Viridis')
-            fig.update_layout(yaxis_tickformat='.0%')
+            # Gauge Chart: Readmission Rate
+            st.markdown("#### Readmission Rate Gauge")
+            fig = go.Figure(go.Indicator(
+                mode="gauge+number+delta",
+                value=readmission_rate * 100,
+                domain={'x': [0, 1], 'y': [0, 1]},
+                title={'text': "Readmission Rate (%)", 'font': {'size': 20}},
+                delta={'reference': 50, 'increasing': {'color': HOSPITAL_COLORS['danger']}},
+                gauge={
+                    'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
+                    'bar': {'color': HOSPITAL_COLORS['primary']},
+                    'bgcolor': "white",
+                    'borderwidth': 2,
+                    'bordercolor': "gray",
+                    'steps': [
+                        {'range': [0, 30], 'color': HOSPITAL_COLORS['success']},
+                        {'range': [30, 60], 'color': HOSPITAL_COLORS['warning']},
+                        {'range': [60, 100], 'color': HOSPITAL_COLORS['danger']}
+                    ],
+                    'threshold': {
+                        'line': {'color': "red", 'width': 4},
+                        'thickness': 0.75,
+                        'value': 70
+                    }
+                }
+            ))
+            fig.update_layout(height=400, font={'size': 14})
             st.plotly_chart(fig, use_container_width=True)
-            
-            st.subheader("Length of Stay vs Readmission")
-            fig = px.box(df, x=df['label'].map({0: 'Not Readmitted', 1: 'Readmitted'}), 
-                        y="length_of_stay", color=df['label'].map({0: 'Not Readmitted', 1: 'Readmitted'}),
-                        color_discrete_sequence=["#00cc96", "#ef553b"])
-            st.plotly_chart(fig, use_container_width=True)
-            
+        
         st.divider()
         
-        col1, col2, col3 = st.columns(3)
+        # Row 2: Diagnosis and Treatment Analysis
+        st.markdown("### 🏥 Clinical Analysis")
+        col1, col2 = st.columns(2)
+        
         with col1:
-            st.subheader("Readmission by Region")
-            region_rates = df.groupby('region')['label'].mean()
-            fig = px.bar(x=region_rates.index, y=region_rates.values,
-                        labels={'x': 'Region', 'y': 'Readmission Rate'},
-                        color=region_rates.values, color_continuous_scale='Blues')
-            fig.update_layout(yaxis_tickformat='.0%')
-            st.plotly_chart(fig, use_container_width=True)
+            # Horizontal Bar: Readmission by Diagnosis (sorted)
+            st.markdown("#### Readmission Rate by Primary Diagnosis")
+            diag_rates = df.groupby('primary_diagnosis')['label'].agg(['mean', 'count']).reset_index()
+            diag_rates.columns = ['Diagnosis', 'Rate', 'Count']
+            diag_rates = diag_rates.sort_values('Rate', ascending=True)
             
+            fig = px.bar(
+                diag_rates,
+                x='Rate',
+                y='Diagnosis',
+                orientation='h',
+                color='Rate',
+                color_continuous_scale=HOSPITAL_COLORS['gradient_risk'],
+                hover_data={'Count': True, 'Rate': ':.1%'},
+                labels={'Rate': 'Readmission Rate', 'Diagnosis': 'Primary Diagnosis'}
+            )
+            fig.update_layout(
+                xaxis_tickformat='.0%',
+                showlegend=False,
+                height=500,
+                xaxis_title="Readmission Rate",
+                yaxis_title="Primary Diagnosis"
+            )
+            fig.update_traces(
+                hovertemplate='<b>%{y}</b><br>Rate: %{x:.1%}<br>Patients: %{customdata[0]}<extra></extra>'
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
         with col2:
-            st.subheader("Readmission by Season")
-            season_rates = df.groupby('season')['label'].mean()
-            fig = px.bar(x=season_rates.index, y=season_rates.values,
-                        labels={'x': 'Season', 'y': 'Readmission Rate'},
-                        color=season_rates.values, color_continuous_scale='Greens')
-            fig.update_layout(yaxis_tickformat='.0%')
+            # Stacked Bar: Treatment Type Distribution
+            st.markdown("#### Treatment Type Distribution by Outcome")
+            treatment_data = df.groupby(['treatment_type', 'label']).size().reset_index(name='count')
+            treatment_data['label'] = treatment_data['label'].map({0: 'Not Readmitted', 1: 'Readmitted'})
+            
+            fig = px.bar(
+                treatment_data,
+                x='treatment_type',
+                y='count',
+                color='label',
+                barmode='stack',
+                color_discrete_map={'Not Readmitted': HOSPITAL_COLORS['success'], 'Readmitted': HOSPITAL_COLORS['danger']},
+                labels={'count': 'Number of Patients', 'treatment_type': 'Treatment Type', 'label': 'Outcome'},
+                hover_data={'count': ':,'}
+            )
+            fig.update_layout(
+                height=500,
+                xaxis_title="Treatment Type",
+                yaxis_title="Number of Patients",
+                legend_title="Outcome",
+                hovermode='x unified'
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        st.divider()
+        
+        # Row 3: Age and Length of Stay Analysis
+        st.markdown("### 📈 Patient Demographics & Stay Duration")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Area Chart: Age Distribution by Readmission
+            st.markdown("#### Age Distribution by Readmission Status")
+            age_bins = pd.cut(df['age'], bins=range(0, 101, 10))
+            age_data = df.groupby([age_bins, 'label']).size().reset_index(name='count')
+            age_data['age_group'] = age_data['age'].astype(str)
+            age_data['label'] = age_data['label'].map({0: 'Not Readmitted', 1: 'Readmitted'})
+            
+            fig = px.area(
+                age_data,
+                x='age_group',
+                y='count',
+                color='label',
+                color_discrete_map={'Not Readmitted': HOSPITAL_COLORS['success'], 'Readmitted': HOSPITAL_COLORS['danger']},
+                labels={'count': 'Number of Patients', 'age_group': 'Age Group', 'label': 'Status'}
+            )
+            fig.update_layout(
+                height=400,
+                xaxis_title="Age Group",
+                yaxis_title="Number of Patients",
+                legend_title="Status",
+                hovermode='x unified'
+            )
+            fig.update_xaxes(tickangle=-45)
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            # Violin Plot: Length of Stay Distribution
+            st.markdown("#### Length of Stay Distribution by Outcome")
+            df_plot = df.copy()
+            df_plot['Outcome'] = df_plot['label'].map({0: 'Not Readmitted', 1: 'Readmitted'})
+            
+            fig = px.violin(
+                df_plot,
+                x='Outcome',
+                y='length_of_stay',
+                color='Outcome',
+                box=True,
+                points='outliers',
+                color_discrete_map={'Not Readmitted': HOSPITAL_COLORS['success'], 'Readmitted': HOSPITAL_COLORS['danger']},
+                labels={'length_of_stay': 'Length of Stay (days)', 'Outcome': 'Readmission Status'}
+            )
+            fig.update_layout(
+                height=400,
+                showlegend=False,
+                yaxis_title="Length of Stay (days)",
+                xaxis_title="Readmission Status"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        st.divider()
+        
+        # Row 4: Geographic and Seasonal Analysis
+        st.markdown("### 🌍 Geographic & Seasonal Patterns")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            # Donut Chart: Regional Distribution
+            st.markdown("#### Readmission by Region")
+            region_data = df.groupby('region')['label'].agg(['sum', 'count']).reset_index()
+            region_data['rate'] = region_data['sum'] / region_data['count']
+            
+            fig = px.pie(
+                region_data,
+                values='count',
+                names='region',
+                color='region',
+                color_discrete_sequence=HOSPITAL_COLORS['categorical'],
+                hole=0.5
+            )
+            fig.update_traces(
+                textposition='inside',
+                textinfo='percent+label',
+                hovertemplate='<b>%{label}</b><br>Patients: %{value}<br>Percentage: %{percent}<extra></extra>'
+            )
+            fig.update_layout(height=350, showlegend=True)
             st.plotly_chart(fig, use_container_width=True)
             
+            # Show rates below
+            st.markdown("**Readmission Rates:**")
+            for _, row in region_data.iterrows():
+                st.write(f"• {row['region'].title()}: {row['rate']:.1%}")
+        
+        with col2:
+            # Bar Chart: Seasonal Patterns
+            st.markdown("#### Seasonal Readmission Patterns")
+            season_data = df.groupby('season')['label'].agg(['mean', 'count']).reset_index()
+            season_data.columns = ['Season', 'Rate', 'Count']
+            season_order = ['winter', 'spring', 'summer', 'fall']
+            season_data['Season'] = pd.Categorical(season_data['Season'], categories=season_order, ordered=True)
+            season_data = season_data.sort_values('Season')
+            
+            fig = px.bar(
+                season_data,
+                x='Season',
+                y='Rate',
+                color='Season',
+                color_discrete_map={
+                    'winter': '#4A90E2',  # Blue
+                    'spring': '#7ED321',  # Green
+                    'summer': '#F5A623',  # Orange
+                    'fall': '#D0021B'     # Red
+                },
+                hover_data={'Count': True, 'Rate': ':.1%'},
+                labels={'Rate': 'Readmission Rate', 'Season': 'Season'}
+            )
+            fig.update_layout(
+                height=350,
+                yaxis_tickformat='.0%',
+                showlegend=False,
+                yaxis_title="Readmission Rate",
+                xaxis_title="Season"
+            )
+            fig.update_traces(
+                hovertemplate='<b>%{x}</b><br>Rate: %{y:.1%}<br>Patients: %{customdata[0]}<extra></extra>'
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
         with col3:
-            st.subheader("Readmission by Treatment Type")
-            treatment_rates = df.groupby('treatment_type')['label'].mean()
-            fig = px.bar(x=treatment_rates.index, y=treatment_rates.values,
-                        labels={'x': 'Treatment Type', 'y': 'Readmission Rate'},
-                        color=treatment_rates.values, color_continuous_scale='Oranges')
-            fig.update_layout(yaxis_tickformat='.0%')
-            st.plotly_chart(fig, use_container_width=True)
+            # Funnel Chart: Insurance Type
+            st.markdown("#### Insurance Type Distribution")
+            insurance_data = df.groupby('insurance_type')['label'].agg(['sum', 'count']).reset_index()
+            insurance_data.columns = ['Insurance', 'Readmitted', 'Total']
+            insurance_data = insurance_data.sort_values('Total', ascending=False)
             
+            fig = go.Figure(go.Funnel(
+                y=insurance_data['Insurance'],
+                x=insurance_data['Total'],
+                textposition="inside",
+                textinfo="value+percent initial",
+                marker={
+                    "color": HOSPITAL_COLORS['gradient_blue'],
+                    "line": {"width": 2, "color": "white"}
+                },
+                connector={"line": {"color": HOSPITAL_COLORS['primary'], "width": 2}}
+            ))
+            fig.update_layout(
+                height=350,
+                showlegend=False,
+                yaxis_title="Insurance Type",
+                xaxis_title="Number of Patients"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        st.divider()
+        
+        # Row 5: Risk Factors Analysis
+        st.markdown("### ⚠️ Risk Factors Analysis")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Scatter Plot: Comorbidities vs Medications
+            st.markdown("#### Comorbidities vs Medications (Risk Analysis)")
+            df_sample = df.sample(min(1000, len(df)))  # Sample for performance
+            df_sample['Outcome'] = df_sample['label'].map({0: 'Not Readmitted', 1: 'Readmitted'})
+            
+            fig = px.scatter(
+                df_sample,
+                x='comorbidities_count',
+                y='medications_count',
+                color='Outcome',
+                size='readmission_risk_score',
+                color_discrete_map={'Not Readmitted': HOSPITAL_COLORS['success'], 'Readmitted': HOSPITAL_COLORS['danger']},
+                labels={
+                    'comorbidities_count': 'Number of Comorbidities',
+                    'medications_count': 'Number of Medications',
+                    'readmission_risk_score': 'Risk Score'
+                },
+                hover_data=['age', 'length_of_stay', 'readmission_risk_score']
+            )
+            fig.update_layout(
+                height=450,
+                xaxis_title="Number of Comorbidities",
+                yaxis_title="Number of Medications",
+                legend_title="Outcome"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            # Heatmap: Correlation Matrix
+            st.markdown("#### Risk Factor Correlation Heatmap")
+            numeric_cols = ['age', 'comorbidities_count', 'length_of_stay', 
+                          'medications_count', 'followup_visits_last_year', 
+                          'prev_readmissions', 'readmission_risk_score', 'label']
+            corr_matrix = df[numeric_cols].corr()
+            
+            fig = px.imshow(
+                corr_matrix,
+                labels=dict(color="Correlation"),
+                x=corr_matrix.columns,
+                y=corr_matrix.columns,
+                color_continuous_scale='RdBu_r',
+                zmin=-1,
+                zmax=1,
+                aspect="auto"
+            )
+            fig.update_layout(
+                height=450,
+                xaxis_title="",
+                yaxis_title=""
+            )
+            fig.update_xaxes(tickangle=-45)
+            st.plotly_chart(fig, use_container_width=True)
+        
+        st.divider()
+        
+        # Row 6: Previous Readmissions Impact
+        st.markdown("### 🔄 Impact of Previous Readmissions")
+        
+        # Line Chart with Area: Previous Readmissions Trend
+        prev_readm_data = df.groupby('prev_readmissions')['label'].agg(['mean', 'count']).reset_index()
+        prev_readm_data.columns = ['Previous Readmissions', 'Rate', 'Count']
+        
+        fig = go.Figure()
+        
+        # Add area trace
+        fig.add_trace(go.Scatter(
+            x=prev_readm_data['Previous Readmissions'],
+            y=prev_readm_data['Rate'],
+            fill='tozeroy',
+            name='Readmission Rate',
+            line=dict(color=HOSPITAL_COLORS['danger'], width=3),
+            fillcolor=f"rgba(220, 20, 60, 0.3)",
+            hovertemplate='<b>Previous Readmissions: %{x}</b><br>Rate: %{y:.1%}<extra></extra>'
+        ))
+        
+        # Add count as bar on secondary y-axis
+        fig.add_trace(go.Bar(
+            x=prev_readm_data['Previous Readmissions'],
+            y=prev_readm_data['Count'],
+            name='Patient Count',
+            marker_color=HOSPITAL_COLORS['info'],
+            opacity=0.6,
+            yaxis='y2',
+            hovertemplate='<b>Previous Readmissions: %{x}</b><br>Patients: %{y}<extra></extra>'
+        ))
+        
+        fig.update_layout(
+            title="Readmission Rate vs Previous Readmissions",
+            xaxis_title="Number of Previous Readmissions",
+            yaxis_title="Readmission Rate",
+            yaxis=dict(tickformat='.0%', side='left'),
+            yaxis2=dict(title="Number of Patients", overlaying='y', side='right'),
+            height=400,
+            hovermode='x unified',
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Summary Statistics
+        st.markdown("### 📋 Summary Statistics")
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.markdown("**Age Statistics**")
+            st.write(f"• Min: {df['age'].min()} years")
+            st.write(f"• Max: {df['age'].max()} years")
+            st.write(f"• Median: {df['age'].median():.0f} years")
+            st.write(f"• Std Dev: {df['age'].std():.1f}")
+        
+        with col2:
+            st.markdown("**Length of Stay**")
+            st.write(f"• Min: {df['length_of_stay'].min()} days")
+            st.write(f"• Max: {df['length_of_stay'].max()} days")
+            st.write(f"• Median: {df['length_of_stay'].median():.0f} days")
+            st.write(f"• Std Dev: {df['length_of_stay'].std():.1f}")
+        
+        with col3:
+            st.markdown("**Comorbidities**")
+            st.write(f"• Min: {df['comorbidities_count'].min()}")
+            st.write(f"• Max: {df['comorbidities_count'].max()}")
+            st.write(f"• Median: {df['comorbidities_count'].median():.0f}")
+            st.write(f"• Avg: {df['comorbidities_count'].mean():.1f}")
+        
+        with col4:
+            st.markdown("**Medications**")
+            st.write(f"• Min: {df['medications_count'].min()}")
+            st.write(f"• Max: {df['medications_count'].max()}")
+            st.write(f"• Median: {df['medications_count'].median():.0f}")
+            st.write(f"• Avg: {df['medications_count'].mean():.1f}")
+        
     except Exception as e:
         st.error(f"Error loading analytics data: {e}")
+        import traceback
+        st.code(traceback.format_exc())
 
 elif page == "Model Performance":
     st.title("Model Performance & Explainability")

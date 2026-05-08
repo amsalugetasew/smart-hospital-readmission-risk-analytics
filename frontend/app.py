@@ -140,6 +140,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Detect deployment environment
+IS_STREAMLIT_CLOUD = os.getenv("STREAMLIT_SHARING_MODE") is not None or \
+                     os.getenv("STREAMLIT_SERVER_HEADLESS") == "true"
+
 # API URL - Use environment variable for deployment
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
@@ -147,15 +151,29 @@ API_URL = os.getenv("API_URL", "http://localhost:8000")
 try:
     if hasattr(st, 'secrets') and 'API_URL' in st.secrets:
         API_URL = st.secrets['API_URL']
+    elif IS_STREAMLIT_CLOUD:
+        # On Streamlit Cloud without backend URL configured
+        API_URL = None  # Will use embedded model
+        print("🔵 Running on Streamlit Cloud in frontend-only mode (embedded model)")
 except Exception:
     # No secrets file or error accessing secrets - use default local URL
-    API_URL = "http://localhost:8000"
+    if not IS_STREAMLIT_CLOUD:
+        API_URL = "http://localhost:8000"
+    else:
+        API_URL = None  # Use embedded model on cloud
 
 # Debug: Print the API URL being used
-print(f"🔗 Frontend connecting to: {API_URL}")
+if API_URL:
+    print(f"🔗 Frontend connecting to: {API_URL}")
+else:
+    print(f"🔵 Frontend running in embedded mode (no backend)")
 
 def check_backend_health():
     """Check if backend is running and healthy"""
+    # If no API_URL (embedded mode), return False to show embedded mode status
+    if API_URL is None:
+        return False
+        
     try:
         # Increased timeout to 10 seconds for more reliability
         response = requests.get(f"{API_URL}/health", timeout=10)
@@ -177,6 +195,15 @@ def check_backend_health():
     return False
 
 def get_analytics():
+    # If no backend URL or backend not available, use embedded analytics
+    if API_URL is None:
+        try:
+            from frontend.embedded_predictor import embedded_predictor
+            return embedded_predictor.get_analytics()
+        except:
+            return get_fallback_analytics()
+    
+    # Try backend first
     try:
         response = requests.get(f"{API_URL}/analytics", timeout=5)
         if response.status_code == 200:
@@ -189,17 +216,30 @@ def get_analytics():
         from frontend.embedded_predictor import embedded_predictor
         return embedded_predictor.get_analytics()
     except:
-        # Default fallback values
-        return {
-            "total_patients": 8000,
-            "readmission_rate": 0.77,
-            "average_length_of_stay": 7.5,
-            "high_risk_percentage": 0.23,
-            "model_accuracy": 0.85
-        }
+        return get_fallback_analytics()
+
+def get_fallback_analytics():
+    """Fallback analytics when both backend and embedded fail"""
+    return {
+        "total_patients": 8000,
+        "readmission_rate": 0.77,
+        "average_length_of_stay": 7.5,
+        "high_risk_percentage": 0.23,
+        "model_accuracy": 0.85
+    }
         
 def get_prediction(data):
     """Make prediction with retry logic for better reliability"""
+    # If no backend URL (embedded mode), use embedded predictor directly
+    if API_URL is None:
+        try:
+            from frontend.embedded_predictor import embedded_predictor
+            return embedded_predictor.predict(data)
+        except Exception as e:
+            st.error(f"❌ Embedded prediction failed: {str(e)}")
+            return None
+    
+    # Try backend with retry logic
     max_retries = 3
     
     for attempt in range(max_retries):
@@ -230,9 +270,6 @@ def get_prediction(data):
                     return embedded_predictor.predict(data)
                 except Exception as e:
                     st.error(f"❌ Both backend API and embedded model failed: {str(e)}")
-                    st.info("💡 Please ensure backend is running:")
-                    st.code("uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload")
-                    st.info(f"💡 Backend URL: {API_URL}")
                     return None
                     
         except requests.exceptions.Timeout:
@@ -242,11 +279,16 @@ def get_prediction(data):
                 time.sleep(1)
             else:
                 st.error("⏱️ Request timed out after multiple attempts.")
-                return None
+                # Try embedded as fallback
+                try:
+                    from frontend.embedded_predictor import embedded_predictor
+                    st.info("🔄 Using embedded model as fallback")
+                    return embedded_predictor.predict(data)
+                except:
+                    return None
                 
         except Exception as e:
             st.error(f"❌ Unexpected error: {e}")
-            st.info(f"💡 Backend URL: {API_URL}")
             return None
     
     return None
@@ -257,7 +299,23 @@ with st.sidebar:
     
     # Backend status indicator
     backend_healthy = check_backend_health()
-    if backend_healthy:
+    
+    # Check if running in embedded mode (Streamlit Cloud without backend)
+    if API_URL is None or IS_STREAMLIT_CLOUD and not backend_healthy:
+        st.info("🔵 Embedded Mode")
+        with st.expander("ℹ️ Deployment Info", expanded=False):
+            st.write("**Mode:** Frontend-Only (Embedded Model)")
+            st.write("**Status:** Using embedded ML model")
+            st.write("**Features Available:**")
+            st.write("- ✅ Predictions (embedded model)")
+            st.write("- ✅ Data visualization")
+            st.write("- ✅ EDA and analytics")
+            st.write("- ⚠️ Model training (limited)")
+            st.write("")
+            st.write("**Note:** For full features including")
+            st.write("SHAP explanations and model reloading,")
+            st.write("deploy the backend separately.")
+    elif backend_healthy:
         st.success("🟢 Backend Connected")
         with st.expander("ℹ️ Connection Info", expanded=False):
             st.write(f"**Backend URL:** {API_URL}")
@@ -276,10 +334,10 @@ with st.sidebar:
                         st.error(f"❌ Error: {e}")
     else:
         st.error("🔴 Backend Disconnected")
-        st.warning("⚠️ Backend API is not responding. Some features will be limited.")
+        st.warning("⚠️ Backend API is not responding. Using embedded model.")
         
         # Show connection details
-        with st.expander("🔧 Connection Troubleshooting", expanded=True):
+        with st.expander("🔧 Connection Troubleshooting", expanded=False):
             st.write(f"**Backend URL:** {API_URL}")
             st.write("**Status:** Not responding")
             st.write("")

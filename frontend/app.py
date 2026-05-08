@@ -486,6 +486,116 @@ if page == "Overview":
             
             st.divider()
             
+            # Data Visualizations Section
+            st.subheader("📊 Data Visualizations")
+            
+            # 1. Age Distribution
+            st.markdown("#### Age Distribution")
+            fig_age = px.histogram(
+                df, 
+                x='age', 
+                nbins=30,
+                title='Age Distribution of Patients',
+                labels={'age': 'Age (years)', 'count': 'Number of Patients'},
+                color_discrete_sequence=['#4CAF50']
+            )
+            fig_age.update_layout(
+                showlegend=False,
+                height=400,
+                xaxis_title="Age (years)",
+                yaxis_title="Count"
+            )
+            # Add KDE-like smooth line
+            fig_age.update_traces(marker_line_width=1, marker_line_color="white")
+            st.plotly_chart(fig_age, use_container_width=True)
+            
+            # 2. Readmission by Gender
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("#### Readmission by Gender")
+                gender_readmission = df.groupby(['gender', 'label']).size().reset_index(name='count')
+                gender_readmission['label'] = gender_readmission['label'].map({0: 'Not Readmitted', 1: 'Readmitted'})
+                
+                fig_gender = px.bar(
+                    gender_readmission,
+                    x='gender',
+                    y='count',
+                    color='label',
+                    title='Readmission Status by Gender',
+                    labels={'count': 'Number of Patients', 'gender': 'Gender', 'label': 'Status'},
+                    color_discrete_map={'Not Readmitted': '#00cc96', 'Readmitted': '#ef553b'},
+                    barmode='group'
+                )
+                fig_gender.update_layout(height=400)
+                st.plotly_chart(fig_gender, use_container_width=True)
+            
+            with col2:
+                st.markdown("#### Readmission Rate by Gender")
+                gender_rate = df.groupby('gender')['label'].agg(['sum', 'count']).reset_index()
+                gender_rate['rate'] = (gender_rate['sum'] / gender_rate['count'] * 100)
+                
+                fig_gender_rate = px.bar(
+                    gender_rate,
+                    x='gender',
+                    y='rate',
+                    title='Readmission Rate by Gender (%)',
+                    labels={'rate': 'Readmission Rate (%)', 'gender': 'Gender'},
+                    color='rate',
+                    color_continuous_scale='RdYlGn_r'
+                )
+                fig_gender_rate.update_layout(height=400, showlegend=False)
+                st.plotly_chart(fig_gender_rate, use_container_width=True)
+            
+            # 3. Readmission by Primary Diagnosis
+            st.markdown("#### Readmission by Primary Diagnosis")
+            diagnosis_readmission = df.groupby(['primary_diagnosis', 'label']).size().reset_index(name='count')
+            diagnosis_readmission['label'] = diagnosis_readmission['label'].map({0: 'Not Readmitted', 1: 'Readmitted'})
+            
+            fig_diagnosis = px.bar(
+                diagnosis_readmission,
+                x='primary_diagnosis',
+                y='count',
+                color='label',
+                title='Readmission Status by Primary Diagnosis',
+                labels={'count': 'Number of Patients', 'primary_diagnosis': 'Primary Diagnosis', 'label': 'Status'},
+                color_discrete_map={'Not Readmitted': '#00cc96', 'Readmitted': '#ef553b'},
+                barmode='group'
+            )
+            fig_diagnosis.update_layout(
+                height=500,
+                xaxis_tickangle=-45,
+                xaxis_title="Primary Diagnosis",
+                yaxis_title="Number of Patients"
+            )
+            st.plotly_chart(fig_diagnosis, use_container_width=True)
+            
+            # Additional insights
+            with st.expander("📈 Additional Insights", expanded=False):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Readmission rate by diagnosis
+                    diagnosis_rate = df.groupby('primary_diagnosis')['label'].agg(['sum', 'count']).reset_index()
+                    diagnosis_rate['rate'] = (diagnosis_rate['sum'] / diagnosis_rate['count'] * 100)
+                    diagnosis_rate = diagnosis_rate.sort_values('rate', ascending=False)
+                    
+                    st.markdown("**Readmission Rate by Diagnosis:**")
+                    for idx, row in diagnosis_rate.iterrows():
+                        st.write(f"- {row['primary_diagnosis']}: {row['rate']:.1f}%")
+                
+                with col2:
+                    # Age group analysis
+                    df['age_group'] = pd.cut(df['age'], bins=[0, 30, 50, 70, 100], labels=['<30', '30-50', '50-70', '70+'])
+                    age_group_rate = df.groupby('age_group')['label'].agg(['sum', 'count']).reset_index()
+                    age_group_rate['rate'] = (age_group_rate['sum'] / age_group_rate['count'] * 100)
+                    
+                    st.markdown("**Readmission Rate by Age Group:**")
+                    for idx, row in age_group_rate.iterrows():
+                        st.write(f"- {row['age_group']}: {row['rate']:.1f}%")
+            
+            st.divider()
+            
             # Model Information
             st.subheader("🤖 Model Information")
             

@@ -67,11 +67,30 @@ if project_root not in sys.path:
 
 @st.cache_resource
 def start_backend():
-    """Disabled for Streamlit Cloud deployment"""
-    pass
+    """Start backend server if not running (for local development)"""
+    def is_port_in_use(port):
+        import socket
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            return s.connect_ex(('127.0.0.1', port)) == 0
+            
+    if not is_port_in_use(8000):
+        print("🚀 Starting backend server...")
+        try:
+            import subprocess
+            subprocess.Popen([
+                "python", "-m", "uvicorn", 
+                "backend.main:app", 
+                "--host", "0.0.0.0", 
+                "--port", "8000", 
+                "--reload"
+            ], cwd=".")
+            import time
+            time.sleep(3)
+        except Exception as e:
+            print(f"⚠️ Could not start backend automatically: {e}")
 
-# Disabled for cloud deployment
-# start_backend()
+# Try to start backend (for local development)
+start_backend()
 
 # Configure page
 st.set_page_config(
@@ -212,8 +231,15 @@ with st.sidebar:
     if backend_healthy:
         st.success("🟢 Backend Connected")
     else:
-        st.info("ℹ️ Frontend-Only Mode")
-        st.caption("This is a Streamlit Cloud deployment running in frontend-only mode. Some features like real-time predictions require a separate backend service.")
+        st.warning("🟡 Backend Starting...")
+        st.info("The backend API is starting up. Some features may be limited until connection is established.")
+        
+        # Show connection details
+        with st.expander("🔧 Connection Details", expanded=False):
+            st.write(f"**Backend URL:** {API_URL}")
+            st.write("**Status:** Attempting to connect...")
+            if st.button("🔄 Retry Connection"):
+                st.rerun()
     
     # Navigation
     if OPTION_MENU_AVAILABLE:
@@ -569,19 +595,8 @@ elif page == "Preprocessing":
     st.markdown("Configure how to handle missing values, scale numerical features, and encode categorical variables.")
     
     if not SKLEARN_AVAILABLE:
-        st.info("ℹ️ Data Preprocessing - Frontend Mode")
-        st.markdown("""
-        **Data preprocessing is running in simplified mode for this deployment.**
-        
-        **Available in this mode:**
-        - ✅ Data upload and validation
-        - ✅ Basic data cleaning
-        - ✅ Data preview and statistics
-        
-        **For full preprocessing capabilities:**
-        - Run locally with: `streamlit run frontend/app.py`
-        - Or deploy with a backend service
-        """)
+        st.error("❌ Scikit-learn not available. Please install required packages.")
+        st.code("pip install scikit-learn")
         st.stop()
     
     # Rest of preprocessing code...
@@ -714,19 +729,8 @@ elif page == "Model Training":
     st.markdown("Train the model using your preprocessed dataset.")
     
     if not SKLEARN_AVAILABLE:
-        st.info("ℹ️ Model Training - Frontend Mode")
-        st.markdown("""
-        **Model training is running in simplified mode for this deployment.**
-        
-        **Available in this mode:**
-        - ✅ Data preprocessing configuration
-        - ✅ Basic model training simulation
-        - ✅ Sample model performance metrics
-        
-        **For full model training capabilities:**
-        - Run locally with: `streamlit run frontend/app.py`
-        - Or deploy with a backend service
-        """)
+        st.error("❌ Scikit-learn not available. Please install required packages.")
+        st.code("pip install scikit-learn joblib")
         st.stop()
     
     # Rest of model training code...

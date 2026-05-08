@@ -5,3 +5,11 @@ scikit-learn
 joblib
 numpy
 requests
+fastapi
+uvicorn
+pydantic
+python-multipart
+shap
+matplotlib
+seaborn
+openpyxl

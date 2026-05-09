@@ -2,32 +2,7 @@
 
 An end-to-end AI-powered healthcare analytics platform that predicts hospital readmission risk using machine learning and provides actionable insights through an interactive web dashboard.
 
-## 📋 Table of Contents
-- [What This System Does](#-what-this-system-does)
-- [Key Features](#-key-features)
-- [Quick Start](#-quick-start)
-- [System Architecture](#-system-architecture)
-- [Deployment](#-deployment)
-- [Batch Predictions](#-batch-predictions)
-- [Analytics Dashboard](#-analytics-dashboard)
-- [Risk Categories](#-risk-categories)
-- [Dataset Information](#-dataset-information)
-- [API Endpoints](#-api-endpoints)
-- [Troubleshooting](#-troubleshooting)
-- [CORS Configuration](#-cors-configuration)
 
----
-
-## 🎯 What This System Does
-
-This platform helps healthcare professionals:
-- **Predict** which patients are at risk of hospital readmission within 30 days
-- **Identify** key risk factors contributing to readmission using explainable AI (SHAP)
-- **Monitor** hospital-wide readmission trends and performance metrics
-- **Analyze** patient demographics, diagnoses, and treatment patterns
-- **Make** data-driven decisions to improve patient outcomes and reduce costs
-
----
 
 ## ✨ Key Features
 
@@ -51,11 +26,6 @@ This platform helps healthcare professionals:
   - Color-coded results table (green/yellow/red)
 
 ### 2. 📊 Interactive Analytics Dashboard
-
-**Hospital-Themed Visualizations:**
-- 12+ interactive chart types (donut, gauge, bar, area, violin, scatter, heatmap, funnel, line)
-- Hospital-themed color palette (Medical Blue, Green, Red, Orange, Teal, Purple)
-- Color meanings: Green = Safe/Not Readmitted, Red = Risk/Readmitted
 
 **Dashboard Sections:**
 1. **KPIs**: Total patients, readmission rate, avg length of stay, high-risk patients

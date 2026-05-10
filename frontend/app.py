@@ -412,7 +412,7 @@ with st.sidebar:
     if OPTION_MENU_AVAILABLE:
         page = option_menu(
             menu_title=None,
-            options=["Dataset Upload", "EDA", "Preprocessing", "Model Training", "Patient Risk Analysis", "Analytics Dashboard", "Model Performance"],
+            options=["Dataset Upload", "EDA", "Preprocessing", "Model Training", "Readmission Prediction", "Analytics Dashboard", "Model Performance"],
             icons=["house", "bar-chart", "gear", "cpu", "activity", "graph-up", "speedometer2"],
             menu_icon="cast",
             default_index=0,
@@ -436,7 +436,7 @@ with st.sidebar:
         # Fallback navigation using selectbox
         page = st.selectbox(
             "Navigate to:",
-            ["Dataset Upload", "EDA", "Preprocessing", "Model Training", "Patient Risk Analysis", "Analytics Dashboard", "Model Performance"]
+            ["Dataset Upload", "EDA", "Preprocessing", "Model Training", "Readmission Prediction", "Analytics Dashboard", "Model Performance"]
         )
 
 if page == "Dataset Upload":
@@ -1322,8 +1322,8 @@ elif page == "Model Training":
                     import traceback
                     st.code(traceback.format_exc())
 
-elif page == "Patient Risk Analysis":
-    st.title("🔮 Patient Risk Prediction")
+elif page == "Readmission Prediction":
+    st.title("🔮 Readmission Prediction")
     st.markdown("Predict hospital readmission risk for individual patients or batch processing")
     
     # Create tabs for single vs batch prediction

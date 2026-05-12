@@ -134,6 +134,27 @@ st.markdown("""
         box-shadow: 0 6px 12px rgba(0, 128, 128, 0.3) !important;
         background-color: #006666 !important;
     }
+    /* Sidebar nav buttons — override main button style */
+    [data-testid="stSidebar"] .stButton > button {
+        background: rgba(255,255,255,0.05) !important;
+        color: #cbd5e1 !important;
+        border: 1px solid rgba(255,255,255,0.08) !important;
+        border-radius: 10px !important;
+        padding: 9px 14px !important;
+        font-size: 0.88rem !important;
+        font-weight: 600 !important;
+        text-align: left !important;
+        box-shadow: none !important;
+        transition: all 0.2s ease !important;
+        margin: 2px 0 !important;
+    }
+    [data-testid="stSidebar"] .stButton > button:hover {
+        background: rgba(255,255,255,0.1) !important;
+        color: #f1f5f9 !important;
+        border-color: rgba(255,255,255,0.15) !important;
+        transform: none !important;
+        box-shadow: none !important;
+    }
     [data-testid="stSidebar"] {
         background-color: #f1f1f1 !important;
     }
@@ -312,217 +333,299 @@ DATASET_PATH = st.session_state['active_dataset_path']
 
 # Sidebar navigation
 with st.sidebar:
-    st.markdown('<div style="text-align: left; margin-bottom: 0px;"><h2>🏥 Hospital Readmission</h2></div>', unsafe_allow_html=True)
-    
-    # Dataset indicator
-    st.markdown("---")
-    if st.session_state.get('using_uploaded_data', False):
-        st.info("📊 **Active Dataset:** Uploaded Data")
-        if os.path.exists(DATASET_PATH):
-            try:
-                df_check = pd.read_csv(DATASET_PATH)
-                st.caption(f"📁 {len(df_check):,} records")
-            except:
-                pass
-    else:
-        st.success("📊 **Active Dataset:** Default Data")
-        if os.path.exists(DATASET_PATH):
-            try:
-                df_check = pd.read_csv(DATASET_PATH)
-                st.caption(f"📁 {len(df_check):,} records")
-            except:
-                pass
-    st.markdown("---")
-    
-    # Backend status indicator
+
+    # ── Custom sidebar CSS ────────────────────────────────────────────────────
+    st.markdown("""
+    <style>
+    /* Sidebar background */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #0f172a 0%, #1e293b 60%, #0f2027 100%) !important;
+    }
+    [data-testid="stSidebar"] * { color: #e2e8f0 !important; }
+
+    /* App title */
+    .sidebar-title {
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #38bdf8 !important;
+        letter-spacing: 0.5px;
+        padding: 4px 0 2px 0;
+        line-height: 1.3;
+    }
+    .sidebar-subtitle {
+        font-size: 0.72rem;
+        color: #94a3b8 !important;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        margin-bottom: 4px;
+    }
+
+    /* Status badge */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        margin: 4px 0;
+        width: 100%;
+    }
+    .status-green  { background: rgba(34,197,94,0.15); border: 1px solid #22c55e; color: #4ade80 !important; }
+    .status-red    { background: rgba(239,68,68,0.15);  border: 1px solid #ef4444; color: #f87171 !important; }
+    .status-blue   { background: rgba(56,189,248,0.15); border: 1px solid #38bdf8; color: #7dd3fc !important; }
+
+    /* Dataset pill */
+    .dataset-pill {
+        background: rgba(99,102,241,0.15);
+        border: 1px solid #6366f1;
+        border-radius: 8px;
+        padding: 7px 12px;
+        font-size: 0.78rem;
+        color: #a5b4fc !important;
+        margin: 4px 0;
+    }
+
+    /* Nav section label */
+    .nav-label {
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: #475569 !important;
+        padding: 10px 4px 4px 4px;
+    }
+
+    /* Nav card buttons */
+    .nav-card {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        margin: 3px 0;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid transparent;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #cbd5e1 !important;
+        background: transparent;
+        width: 100%;
+        text-align: left;
+    }
+    .nav-card:hover {
+        background: rgba(255,255,255,0.07);
+        border-color: rgba(255,255,255,0.1);
+        color: #f1f5f9 !important;
+    }
+    .nav-card.active {
+        background: linear-gradient(135deg, #0ea5e9, #0284c7);
+        border-color: #38bdf8;
+        color: white !important;
+        box-shadow: 0 4px 12px rgba(14,165,233,0.3);
+    }
+    .nav-card.active-green {
+        background: linear-gradient(135deg, #059669, #047857);
+        border-color: #34d399;
+        color: white !important;
+        box-shadow: 0 4px 12px rgba(5,150,105,0.3);
+    }
+    .nav-card.active-purple {
+        background: linear-gradient(135deg, #7c3aed, #6d28d9);
+        border-color: #a78bfa;
+        color: white !important;
+        box-shadow: 0 4px 12px rgba(124,58,237,0.3);
+    }
+    .nav-card.active-teal {
+        background: linear-gradient(135deg, #0f766e, #0d9488);
+        border-color: #2dd4bf;
+        color: white !important;
+        box-shadow: 0 4px 12px rgba(15,118,110,0.3);
+    }
+
+    /* Divider */
+    .sidebar-divider {
+        border: none;
+        border-top: 1px solid rgba(255,255,255,0.08);
+        margin: 10px 0;
+    }
+
+    /* Hide default streamlit radio/selectbox labels */
+    [data-testid="stSidebar"] .stRadio label { display: none; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ── App Header ────────────────────────────────────────────────────────────
+    st.markdown("""
+    <div style="padding: 8px 4px 4px 4px;">
+        <div class="sidebar-subtitle">Smart Analytics Platform</div>
+        <div class="sidebar-title">🏥 Hospital Readmission<br>Risk Analytics</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
+
+    # ── Backend Status ────────────────────────────────────────────────────────
     backend_healthy = check_backend_health()
-    
-    # Check if running in embedded mode (Streamlit Cloud without backend)
-    if API_URL is None or IS_STREAMLIT_CLOUD and not backend_healthy:
-        st.info("🔵 Embedded Mode")
-        with st.expander("ℹ️ Deployment Info", expanded=False):
-            st.write("**Mode:** Frontend-Only (Embedded Model)")
-            st.write("**Status:** Using embedded ML model")
-            st.write("**Features Available:**")
-            st.write("- ✅ Predictions (embedded model)")
-            st.write("- ✅ Data visualization")
-            st.write("- ✅ EDA and analytics")
-            st.write("- ⚠️ Model training (limited)")
-            st.write("")
-            st.write("**Note:** For full features including")
-            st.write("SHAP explanations and model reloading,")
-            st.write("deploy the backend separately.")
+
+    if API_URL is None or (IS_STREAMLIT_CLOUD and not backend_healthy):
+        st.markdown('<div class="status-badge status-blue">🔵 &nbsp; Embedded Mode</div>', unsafe_allow_html=True)
+        with st.expander("ℹ️ About embedded mode", expanded=False):
+            st.caption("Running without backend. Predictions use the embedded ML model.")
     elif backend_healthy:
-        st.success("🟢 Backend Connected")
-        with st.expander("ℹ️ Connection Info", expanded=False):
-            st.write(f"**Backend URL:** {API_URL}")
-            st.write("**Status:** Connected and healthy")
-            st.write("**Model:** Loaded and ready")
-            if st.button("🔄 Test Connection"):
-                with st.spinner("Testing connection..."):
+        st.markdown('<div class="status-badge status-green">🟢 &nbsp; Backend Connected</div>', unsafe_allow_html=True)
+        with st.expander("🔗 Connection details", expanded=False):
+            st.caption(f"**URL:** {API_URL}")
+            st.caption("**Model:** Loaded ✅")
+            if st.button("🔄 Test Connection", use_container_width=True):
+                with st.spinner("Testing..."):
                     try:
-                        response = requests.get(f"{API_URL}/health", timeout=5)
-                        if response.status_code == 200:
-                            st.success("✅ Connection test passed!")
-                            st.json(response.json())
+                        resp = requests.get(f"{API_URL}/health", timeout=5)
+                        if resp.status_code == 200:
+                            st.success("✅ Healthy!")
                         else:
-                            st.error(f"❌ Status: {response.status_code}")
+                            st.error(f"Status {resp.status_code}")
                     except Exception as e:
-                        st.error(f"❌ Error: {e}")
+                        st.error(f"Error: {e}")
     else:
-        st.error("🔴 Backend Disconnected")
-        st.warning("⚠️ Backend API is not responding. Using embedded model.")
-        
-        # Show connection details
-        with st.expander("🔧 Connection Troubleshooting", expanded=False):
-            st.write(f"**Backend URL:** {API_URL}")
-            st.write("**Status:** Not responding")
-            st.write("")
-            st.write("**Troubleshooting Steps:**")
-            st.write("1. Check if backend is running:")
-            st.code("uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload", language="bash")
-            st.write("2. Test backend manually:")
-            st.code("curl http://localhost:8000/health", language="bash")
-            st.write("3. Check if port 8000 is in use:")
-            st.code("netstat -ano | findstr :8000", language="bash")
-            
+        st.markdown('<div class="status-badge status-red">🔴 &nbsp; Backend Offline</div>', unsafe_allow_html=True)
+        with st.expander("🔧 Troubleshoot", expanded=False):
+            st.caption(f"**URL:** {API_URL}")
+            st.code("py -m uvicorn backend.main:app --port 8000", language="bash")
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("🔄 Retry Connection", use_container_width=True):
+                if st.button("🔄 Retry", use_container_width=True):
                     st.rerun()
             with col2:
-                if st.button("🧪 Test Connection", use_container_width=True):
-                    with st.spinner("Testing..."):
-                        try:
-                            response = requests.get(f"{API_URL}/health", timeout=10)
-                            if response.status_code == 200:
-                                st.success("✅ Backend is responding!")
-                                st.json(response.json())
-                                st.info("Click 'Retry Connection' to refresh the status")
-                            else:
-                                st.error(f"❌ Status: {response.status_code}")
-                        except requests.exceptions.ConnectionError:
-                            st.error("❌ Connection refused. Backend is not running.")
-                        except requests.exceptions.Timeout:
-                            st.error("❌ Connection timeout. Backend is slow or not responding.")
-                        except Exception as e:
-                            st.error(f"❌ Error: {type(e).__name__}: {e}")
-    
-    st.markdown("---")
-    
-    # ============ TWO-LEVEL NAVIGATION SYSTEM ============
-    
-    # Initialize session state for main menu
+                if st.button("🧪 Test", use_container_width=True):
+                    try:
+                        resp = requests.get(f"{API_URL}/health", timeout=5)
+                        st.success("✅ OK") if resp.status_code == 200 else st.error(f"{resp.status_code}")
+                    except:
+                        st.error("❌ No response")
+
+    # ── Dataset Indicator ─────────────────────────────────────────────────────
+    st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
+    if st.session_state.get('using_uploaded_data', False):
+        ds_icon, ds_label, ds_color = "📤", "Uploaded Dataset", "#a5b4fc"
+    else:
+        ds_icon, ds_label, ds_color = "📊", "Default Dataset", "#6ee7b7"
+
+    record_count = ""
+    if os.path.exists(DATASET_PATH):
+        try:
+            _df = pd.read_csv(DATASET_PATH)
+            record_count = f" · {len(_df):,} records"
+        except:
+            pass
+
+    st.markdown(
+        f'<div class="dataset-pill">{ds_icon} <strong>{ds_label}</strong>{record_count}</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
+
+    # ── Navigation ────────────────────────────────────────────────────────────
     if 'main_menu' not in st.session_state:
         st.session_state['main_menu'] = "Prediction"
-    
-    # Main Navigation Menu (Top Level)
-    st.markdown("### 📋 Main Menu")
-    
-    if OPTION_MENU_AVAILABLE:
-        main_menu = option_menu(
-            menu_title=None,
-            options=["Prediction", "Model Training"],
-            icons=["activity", "cpu"],
-            menu_icon="cast",
-            default_index=0 if st.session_state['main_menu'] == "Prediction" else 1,
-            styles={
-                "container": {"padding": "0!important", "background-color": "transparent"},
-                "icon": {"color": "#008080", "font-size": "20px"},
-                "nav-link": {
-                    "font-size": "18px",
-                    "text-align": "left",
-                    "margin": "5px 0",
-                    "padding": "12px 16px",
-                    "color": "#1e293b",
-                    "font-weight": "600",
-                    "--hover-color": "#e0f2f1",
-                },
-                "nav-link-selected": {
-                    "background-color": "#008080",
-                    "color": "white",
-                    "font-weight": "700",
-                },
-            }
-        )
-    else:
-        main_menu = st.radio(
-            "Main Menu:",
-            ["Prediction", "Model Training"],
-            index=0 if st.session_state['main_menu'] == "Prediction" else 1
-        )
-    
-    # Update session state
-    st.session_state['main_menu'] = main_menu
-    
-    st.markdown("---")
-    
-    # Sub-Navigation Menu (Based on Main Menu Selection)
-    if main_menu == "Prediction":
-        st.markdown("### 🎯 Prediction Menu")
-        
-        if OPTION_MENU_AVAILABLE:
-            page = option_menu(
-                menu_title=None,
-                options=["Readmission Prediction", "Analytics Dashboard"],
-                icons=["heart-pulse", "graph-up"],
-                menu_icon="cast",
-                default_index=0,
-                styles={
-                    "container": {"padding": "0!important", "background-color": "transparent"},
-                    "icon": {"color": "#00A86B", "font-size": "18px"},
-                    "nav-link": {
-                        "font-size": "16px",
-                        "text-align": "left",
-                        "margin": "5px 0",
-                        "padding": "10px 16px",
-                        "color": "#1e293b",
-                        "--hover-color": "#e8f5e9",
-                    },
-                    "nav-link-selected": {
-                        "background-color": "#00A86B",
-                        "color": "white",
-                    },
-                }
-            )
-        else:
-            page = st.selectbox(
-                "Select Page:",
-                ["Readmission Prediction", "Analytics Dashboard"]
-            )
-    
+    if 'sub_page' not in st.session_state:
+        st.session_state['sub_page'] = "Readmission Prediction"
+
+    # Top-level nav items
+    NAV_ITEMS = [
+        {"key": "Prediction",           "icon": "🎯", "label": "Prediction",          "color": "active-green"},
+        {"key": "Model Training",        "icon": "🔬", "label": "Model Training",       "color": "active"},
+        {"key": "🤖 LLM Medical Advisor","icon": "🤖", "label": "LLM Medical Advisor",  "color": "active-purple"},
+    ]
+
+    st.markdown('<div class="nav-label">Navigation</div>', unsafe_allow_html=True)
+
+    for item in NAV_ITEMS:
+        is_active = st.session_state['main_menu'] == item["key"]
+        css_class = f"nav-card {item['color']}" if is_active else "nav-card"
+        if st.button(
+            f"{item['icon']}  {item['label']}",
+            key=f"nav_{item['key']}",
+            use_container_width=True,
+        ):
+            st.session_state['main_menu'] = item["key"]
+            # Reset sub-page when switching main section
+            if item["key"] == "Prediction":
+                st.session_state['sub_page'] = "Readmission Prediction"
+            elif item["key"] == "Model Training":
+                st.session_state['sub_page'] = "Dataset Upload"
+            st.rerun()
+
+    main_menu = st.session_state['main_menu']
+
+    # ── Sub-navigation ────────────────────────────────────────────────────────
+    if main_menu == "🤖 LLM Medical Advisor":
+        page = "LLM Medical Advisor"
+
+    elif main_menu == "Prediction":
+        st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
+        st.markdown('<div class="nav-label">Prediction Tools</div>', unsafe_allow_html=True)
+
+        PRED_PAGES = [
+            {"key": "Readmission Prediction", "icon": "💓", "label": "Readmission Prediction"},
+            {"key": "Analytics Dashboard",    "icon": "📈", "label": "Analytics Dashboard"},
+        ]
+        for item in PRED_PAGES:
+            is_active = st.session_state.get('sub_page') == item["key"]
+            if st.button(
+                f"{item['icon']}  {item['label']}",
+                key=f"sub_{item['key']}",
+                use_container_width=True,
+            ):
+                st.session_state['sub_page'] = item["key"]
+                st.rerun()
+            if is_active:
+                st.markdown(
+                    f'<div style="height:3px;background:linear-gradient(90deg,#059669,transparent);'
+                    f'border-radius:2px;margin:-6px 0 4px 0;"></div>',
+                    unsafe_allow_html=True,
+                )
+        page = st.session_state.get('sub_page', "Readmission Prediction")
+
     else:  # Model Training
-        st.markdown("### 🔬 Model Training Menu")
-        
-        if OPTION_MENU_AVAILABLE:
-            page = option_menu(
-                menu_title=None,
-                options=["Dataset Upload", "EDA", "Preprocessing", "Model Training", "Model Performance"],
-                icons=["cloud-upload", "bar-chart", "gear", "cpu", "speedometer2"],
-                menu_icon="cast",
-                default_index=0,
-                styles={
-                    "container": {"padding": "0!important", "background-color": "transparent"},
-                    "icon": {"color": "#0066CC", "font-size": "18px"},
-                    "nav-link": {
-                        "font-size": "16px",
-                        "text-align": "left",
-                        "margin": "5px 0",
-                        "padding": "10px 16px",
-                        "color": "#1e293b",
-                        "--hover-color": "#e3f2fd",
-                    },
-                    "nav-link-selected": {
-                        "background-color": "#0066CC",
-                        "color": "white",
-                    },
-                }
-            )
-        else:
-            page = st.selectbox(
-                "Select Page:",
-                ["Dataset Upload", "EDA", "Preprocessing", "Model Training", "Model Performance"]
-            )
+        st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
+        st.markdown('<div class="nav-label">Training Pipeline</div>', unsafe_allow_html=True)
+
+        TRAIN_PAGES = [
+            {"key": "Dataset Upload",    "icon": "📁", "label": "Dataset Upload"},
+            {"key": "EDA",               "icon": "🔍", "label": "Exploratory Analysis"},
+            {"key": "Preprocessing",     "icon": "⚙️", "label": "Preprocessing"},
+            {"key": "Model Training",    "icon": "🧠", "label": "Model Training"},
+            {"key": "Model Performance", "icon": "📊", "label": "Model Performance"},
+        ]
+        for item in TRAIN_PAGES:
+            is_active = st.session_state.get('sub_page') == item["key"]
+            if st.button(
+                f"{item['icon']}  {item['label']}",
+                key=f"sub_{item['key']}",
+                use_container_width=True,
+            ):
+                st.session_state['sub_page'] = item["key"]
+                st.rerun()
+            if is_active:
+                st.markdown(
+                    f'<div style="height:3px;background:linear-gradient(90deg,#0ea5e9,transparent);'
+                    f'border-radius:2px;margin:-6px 0 4px 0;"></div>',
+                    unsafe_allow_html=True,
+                )
+        page = st.session_state.get('sub_page', "Dataset Upload")
+
+    # ── Footer ────────────────────────────────────────────────────────────────
+    st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
+    st.markdown(
+        '<div style="font-size:0.65rem;color:#334155;text-align:center;padding:4px 0;">'
+        'AI-Powered Clinical Analytics<br>v2.0 · Groq LLM Enabled'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
 if page == "Dataset Upload":
     st.title("Hospital Readmission Overview")
@@ -2487,3 +2590,11 @@ elif page == "Model Performance":
         - F1 Score: 79.0%
         - ROC AUC: 0.845
         """)
+
+
+elif page == "LLM Medical Advisor":
+    try:
+        from frontend.llm_advisor_page import render_llm_advisor_page
+        render_llm_advisor_page(API_URL or "http://localhost:8000")
+    except ImportError as e:
+        st.error(f"❌ Could not load LLM Medical Advisor page: {e}")

@@ -1,12 +1,38 @@
+from contextlib import asynccontextmanager
+import os
+
+# Load .env file before anything else so all env vars are available
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv not installed; rely on system env vars
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from backend.models import PatientData, PredictionResponse, AnalyticsResponse
 from backend.predictor import predictor
+from backend.llm_advisor import router as llm_advisor_router, startup_load_model
 import pandas as pd
 import uvicorn
 import os
 
-app = FastAPI(title="Smart Hospital Readmission Risk Analytics API", version="1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Load LLM model at startup (non-blocking for existing endpoints)
+    await startup_load_model()
+    yield
+
+
+app = FastAPI(
+    title="Smart Hospital Readmission Risk Analytics API",
+    version="1.0",
+    lifespan=lifespan,
+)
+
+# Register LLM advisor router
+app.include_router(llm_advisor_router, prefix="/llm-advisor")
 
 # Configure CORS for production and local development
 app.add_middleware(

@@ -408,36 +408,121 @@ with st.sidebar:
                         except Exception as e:
                             st.error(f"❌ Error: {type(e).__name__}: {e}")
     
-    # Navigation
+    st.markdown("---")
+    
+    # ============ TWO-LEVEL NAVIGATION SYSTEM ============
+    
+    # Initialize session state for main menu
+    if 'main_menu' not in st.session_state:
+        st.session_state['main_menu'] = "Prediction"
+    
+    # Main Navigation Menu (Top Level)
+    st.markdown("### 📋 Main Menu")
+    
     if OPTION_MENU_AVAILABLE:
-        page = option_menu(
+        main_menu = option_menu(
             menu_title=None,
-            options=["Dataset Upload", "EDA", "Preprocessing", "Model Training", "Readmission Prediction", "Analytics Dashboard", "Model Performance"],
-            icons=["house", "bar-chart", "gear", "cpu", "activity", "graph-up", "speedometer2"],
+            options=["Prediction", "Model Training"],
+            icons=["activity", "cpu"],
             menu_icon="cast",
-            default_index=0,
+            default_index=0 if st.session_state['main_menu'] == "Prediction" else 1,
             styles={
                 "container": {"padding": "0!important", "background-color": "transparent"},
-                "icon": {"color": "#008080", "font-size": "18px"},
+                "icon": {"color": "#008080", "font-size": "20px"},
                 "nav-link": {
-                    "font-size": "16px",
+                    "font-size": "18px",
                     "text-align": "left",
                     "margin": "5px 0",
+                    "padding": "12px 16px",
                     "color": "#1e293b",
-                    "--hover-color": "#ff00ff",
+                    "font-weight": "600",
+                    "--hover-color": "#e0f2f1",
                 },
                 "nav-link-selected": {
                     "background-color": "#008080",
                     "color": "white",
+                    "font-weight": "700",
                 },
             }
         )
     else:
-        # Fallback navigation using selectbox
-        page = st.selectbox(
-            "Navigate to:",
-            ["Dataset Upload", "EDA", "Preprocessing", "Model Training", "Readmission Prediction", "Analytics Dashboard", "Model Performance"]
+        main_menu = st.radio(
+            "Main Menu:",
+            ["Prediction", "Model Training"],
+            index=0 if st.session_state['main_menu'] == "Prediction" else 1
         )
+    
+    # Update session state
+    st.session_state['main_menu'] = main_menu
+    
+    st.markdown("---")
+    
+    # Sub-Navigation Menu (Based on Main Menu Selection)
+    if main_menu == "Prediction":
+        st.markdown("### 🎯 Prediction Menu")
+        
+        if OPTION_MENU_AVAILABLE:
+            page = option_menu(
+                menu_title=None,
+                options=["Readmission Prediction", "Analytics Dashboard"],
+                icons=["heart-pulse", "graph-up"],
+                menu_icon="cast",
+                default_index=0,
+                styles={
+                    "container": {"padding": "0!important", "background-color": "transparent"},
+                    "icon": {"color": "#00A86B", "font-size": "18px"},
+                    "nav-link": {
+                        "font-size": "16px",
+                        "text-align": "left",
+                        "margin": "5px 0",
+                        "padding": "10px 16px",
+                        "color": "#1e293b",
+                        "--hover-color": "#e8f5e9",
+                    },
+                    "nav-link-selected": {
+                        "background-color": "#00A86B",
+                        "color": "white",
+                    },
+                }
+            )
+        else:
+            page = st.selectbox(
+                "Select Page:",
+                ["Readmission Prediction", "Analytics Dashboard"]
+            )
+    
+    else:  # Model Training
+        st.markdown("### 🔬 Model Training Menu")
+        
+        if OPTION_MENU_AVAILABLE:
+            page = option_menu(
+                menu_title=None,
+                options=["Dataset Upload", "EDA", "Preprocessing", "Model Training", "Model Performance"],
+                icons=["cloud-upload", "bar-chart", "gear", "cpu", "speedometer2"],
+                menu_icon="cast",
+                default_index=0,
+                styles={
+                    "container": {"padding": "0!important", "background-color": "transparent"},
+                    "icon": {"color": "#0066CC", "font-size": "18px"},
+                    "nav-link": {
+                        "font-size": "16px",
+                        "text-align": "left",
+                        "margin": "5px 0",
+                        "padding": "10px 16px",
+                        "color": "#1e293b",
+                        "--hover-color": "#e3f2fd",
+                    },
+                    "nav-link-selected": {
+                        "background-color": "#0066CC",
+                        "color": "white",
+                    },
+                }
+            )
+        else:
+            page = st.selectbox(
+                "Select Page:",
+                ["Dataset Upload", "EDA", "Preprocessing", "Model Training", "Model Performance"]
+            )
 
 if page == "Dataset Upload":
     st.title("Hospital Readmission Overview")

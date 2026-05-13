@@ -59,7 +59,7 @@ def _render_input_form():
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("#### 📋 Patient History")
+        # st.markdown("#### 📋 Patient History")
         hist_file = st.file_uploader(
             "Upload patient history (PDF or TXT)",
             type=ACCEPTED_TYPES,
@@ -72,7 +72,7 @@ def _render_input_form():
             hist_file = None
 
     with col2:
-        st.markdown("#### 🧪 Lab Results")
+        # st.markdown("#### 🧪 Lab Results")
         lab_file = st.file_uploader(
             "Upload lab results (PDF or TXT)",
             type=ACCEPTED_TYPES,
@@ -159,7 +159,7 @@ def _render_results(response: dict) -> None:
         st.markdown(
             '<div style="background:#fee2e2;border-left:6px solid #dc2626;padding:16px 20px;'
             'border-radius:8px;margin-bottom:12px;">'
-            '<span style="font-size:1.4rem;font-weight:700;color:#dc2626;">🔴 READMIT</span>'
+            '<span style="font-size:1.4rem;font-weight:700;color:#dc2626;">🔴 Readmission</span>'
             '</div>',
             unsafe_allow_html=True,
         )
@@ -167,7 +167,7 @@ def _render_results(response: dict) -> None:
         st.markdown(
             '<div style="background:#dcfce7;border-left:6px solid #16a34a;padding:16px 20px;'
             'border-radius:8px;margin-bottom:12px;">'
-            '<span style="font-size:1.4rem;font-weight:700;color:#16a34a;">🟢 DO NOT READMIT</span>'
+            '<span style="font-size:1.4rem;font-weight:700;color:#16a34a;">🟢 No Readmission</span>'
             '</div>',
             unsafe_allow_html=True,
         )

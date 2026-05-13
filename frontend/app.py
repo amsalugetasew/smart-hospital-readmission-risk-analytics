@@ -632,7 +632,7 @@ with st.sidebar:
     # ── Sub-navigation based on main menu ────────────────────────────────────
     if main_menu == "Prediction":
         st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
-        st.markdown('<div class="nav-label">Prediction Tools</div>', unsafe_allow_html=True)
+        # st.markdown('<div class="nav-label">Prediction Tools</div>', unsafe_allow_html=True)
 
         PRED_PAGES = [
             {"key": "Readmission Prediction", "icon": "💓", "label": "Readmission Prediction"},
@@ -1571,28 +1571,28 @@ elif page == "Readmission Prediction":
     
     # ==================== TAB 2: SINGLE PATIENT PREDICTION ====================
     with tab2:
-        st.markdown("### Enter Patient Details")
+        # st.markdown("### Enter Patient Details")
         st.markdown("Fill in the form below to predict readmission risk for a single patient.")
         
         # Debug panel (expandable)
-        with st.expander("🔧 Debug Information", expanded=False):
-            st.write(f"**Backend URL:** {API_URL}")
-            backend_status = check_backend_health()
-            st.write(f"**Backend Status:** {'✅ Healthy' if backend_status else '❌ Unhealthy'}")
+        # with st.expander("🔧 Debug Information", expanded=False):
+        #     st.write(f"**Backend URL:** {API_URL}")
+        #     backend_status = check_backend_health()
+        #     st.write(f"**Backend Status:** {'✅ Healthy' if backend_status else '❌ Unhealthy'}")
             
-            if st.button("Test Backend Connection"):
-                with st.spinner("Testing connection..."):
-                    try:
-                        health_response = requests.get(f"{API_URL}/health", timeout=3)
-                        st.write(f"Health endpoint: {health_response.status_code} - {health_response.json()}")
-                    except Exception as e:
-                        st.error(f"Health endpoint error: {e}")
+        #     if st.button("Test Backend Connection"):
+        #         with st.spinner("Testing connection..."):
+        #             try:
+        #                 health_response = requests.get(f"{API_URL}/health", timeout=3)
+        #                 st.write(f"Health endpoint: {health_response.status_code} - {health_response.json()}")
+        #             except Exception as e:
+        #                 st.error(f"Health endpoint error: {e}")
                     
-                    try:
-                        analytics_response = requests.get(f"{API_URL}/analytics", timeout=3)
-                        st.write(f"Analytics endpoint: {analytics_response.status_code}")
-                    except Exception as e:
-                        st.error(f"Analytics endpoint error: {e}")
+        #             try:
+        #                 analytics_response = requests.get(f"{API_URL}/analytics", timeout=3)
+        #                 st.write(f"Analytics endpoint: {analytics_response.status_code}")
+        #             except Exception as e:
+        #                 st.error(f"Analytics endpoint error: {e}")
         
         with st.form("prediction_form"):
             col1, col2, col3 = st.columns(3)
@@ -1687,7 +1687,7 @@ elif page == "Readmission Prediction":
     
     # ==================== TAB 3: BATCH PREDICTION ====================
     with tab3:
-        st.markdown("### 📤 Upload Patient Data File")
+        # st.markdown("### 📤 Upload Patient Data File")
         st.markdown("Upload a CSV or Excel file with multiple patient records for batch prediction.")
         
         # Show required columns

@@ -1,12 +1,30 @@
 from contextlib import asynccontextmanager
 import os
 
+print("=" * 80)
+print("BACKEND STARTING - Loading environment variables...")
+print("=" * 80)
+
 # Load .env file before anything else so all env vars are available
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    import os
+    # Load from project root (parent of backend directory)
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    env_path = os.path.join(project_root, '.env')
+    result = load_dotenv(dotenv_path=env_path, override=True)
+    print(f"Loading .env from: {env_path}")
+    print(f"load_dotenv() result: {result}")
+    print(f"GROQ_API_KEY found: {'Yes' if os.getenv('GROQ_API_KEY') else 'No'}")
+    if os.getenv('GROQ_API_KEY'):
+        print(f"GROQ_API_KEY value: {os.getenv('GROQ_API_KEY')[:20]}...")
+    print("=" * 80)
 except ImportError:
-    pass  # python-dotenv not installed; rely on system env vars
+    print("WARNING: python-dotenv not installed; relying on system env vars")
+    print("=" * 80)
+except Exception as e:
+    print(f"ERROR loading .env: {e}")
+    print("=" * 80)
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware

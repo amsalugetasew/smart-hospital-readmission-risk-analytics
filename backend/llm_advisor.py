@@ -30,7 +30,11 @@ from typing import List, Optional
 # Load .env so keys are available when load_model() is called
 try:
     from dotenv import load_dotenv as _load_dotenv
-    _load_dotenv()
+    import os as _os
+    # Load from project root (parent of backend directory)
+    _project_root = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    _env_path = _os.path.join(_project_root, '.env')
+    _load_dotenv(dotenv_path=_env_path, override=True)
 except ImportError:
     pass
 
@@ -358,6 +362,8 @@ class LLMAdvisor:
 
     def load_model(self) -> None:
         """Detect and initialise the inference backend."""
+        
+        logger.info("load_model() called - checking environment variables...")
 
         # Read all keys fresh (dotenv already loaded at module import)
         self.model_path = os.getenv("LLM_MODEL_PATH", "")
@@ -368,6 +374,11 @@ class LLMAdvisor:
         or_key    = os.getenv("OPENROUTER_API_KEY", "")
         hf_key    = os.getenv("HF_API_KEY", "")
         gem_key   = os.getenv("GEMINI_API_KEY", "")
+        
+        logger.info(f"Environment check: GROQ_API_KEY={'found' if groq_key else 'not found'}")
+        logger.info(f"Environment check: OPENROUTER_API_KEY={'found' if or_key else 'not found'}")
+        logger.info(f"Environment check: HF_API_KEY={'found' if hf_key else 'not found'}")
+        logger.info(f"Environment check: GEMINI_API_KEY={'found' if gem_key else 'not found'}")
 
         # Explicit provider override, or auto-detect from available keys
         # Helper: use env override if non-empty, else fall back to default model
@@ -515,7 +526,12 @@ llm_advisor = LLMAdvisor()
 
 
 async def startup_load_model() -> None:
+    logger.info("=" * 60)
+    logger.info("Starting LLM Medical Advisor initialization...")
+    logger.info("=" * 60)
     llm_advisor.load_model()
+    logger.info(f"LLM Advisor Status: mode={llm_advisor.mode}, available={llm_advisor.model_available}")
+    logger.info("=" * 60)
 
 
 # ── API Router ────────────────────────────────────────────────────────────────

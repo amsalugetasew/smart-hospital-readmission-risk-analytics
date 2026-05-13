@@ -100,12 +100,79 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Initialize session state for navigation
+if 'main_menu' not in st.session_state:
+    st.session_state['main_menu'] = "Prediction"
+if 'sub_page' not in st.session_state:
+    st.session_state['sub_page'] = "Readmission Prediction"
+
 # Custom CSS
 st.markdown("""
 <style>
     .main {
         background-color: #f8f9fa;
     }
+    
+    /* Navbar brand styling */
+    .navbar-brand-custom {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0.2rem 0;
+    }
+    
+    .navbar-brand-icon-custom {
+        font-size: 2.5rem;
+    }
+    
+    .navbar-brand-text-custom {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .navbar-title-custom {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #1e293b;
+        line-height: 1.2;
+        letter-spacing: 0.3px;
+        margin: 0;
+    }
+    
+    .navbar-subtitle-custom {
+        font-size: 0.75rem;
+        color: #64748b;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin: 0;
+    }
+    
+    /* Navbar button styling */
+    div[data-testid="column"] > div > div > button[kind="primary"] {
+        background: linear-gradient(135deg, #059669, #047857) !important;
+        border: 2px solid #34d399 !important;
+        color: white !important;
+        font-weight: 700 !important;
+        box-shadow: 0 4px 12px rgba(5,150,105,0.4) !important;
+        padding: 0.6rem 1.5rem !important;
+        font-size: 1rem !important;
+    }
+    
+    div[data-testid="column"] > div > div > button[kind="secondary"] {
+        background: rgba(30, 41, 59, 0.05) !important;
+        border: 2px solid rgba(30, 41, 59, 0.2) !important;
+        color: #475569 !important;
+        font-weight: 600 !important;
+        padding: 0.6rem 1.5rem !important;
+        font-size: 1rem !important;
+    }
+    
+    div[data-testid="column"] > div > div > button[kind="secondary"]:hover {
+        background: #008080  !important;
+        border-color: rgba(30, 41, 59, 0.3) !important;
+        color: white !important;
+    }
+    
     .stMetric {
         background-color: white;
         padding: 15px;
@@ -119,7 +186,7 @@ st.markdown("""
     h1, h2, h3 {
         color: #2c3e50;
     }
-    .stButton > button, div[data-testid="stFormSubmitButton"] > button {
+    .stButton > button:not([kind]), div[data-testid="stFormSubmitButton"] > button {
         background-color: #008080 !important;
         color: white !important;
         border: none !important;
@@ -129,12 +196,12 @@ st.markdown("""
         transition: all 0.3s ease;
         box-shadow: 0 4px 6px rgba(0, 128, 128, 0.2) !important;
     }
-    .stButton > button:hover, div[data-testid="stFormSubmitButton"] > button:hover {
+    .stButton > button:not([kind]):hover, div[data-testid="stFormSubmitButton"] > button:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 12px rgba(0, 128, 128, 0.3) !important;
-        background-color: #006666 !important;
+        background-color: #008080 !important;
     }
-    /* Sidebar nav buttons — override main button style */
+    /* Sidebar nav buttons */
     [data-testid="stSidebar"] .stButton > button {
         background: rgba(255,255,255,0.05) !important;
         color: #cbd5e1 !important;
@@ -149,8 +216,8 @@ st.markdown("""
         margin: 2px 0 !important;
     }
     [data-testid="stSidebar"] .stButton > button:hover {
-        background: rgba(255,255,255,0.1) !important;
-        color: #f1f5f9 !important;
+        background: #008080 !important;
+        color: white !important;
         border-color: rgba(255,255,255,0.15) !important;
         transform: none !important;
         box-shadow: none !important;
@@ -331,7 +398,47 @@ if 'active_dataset_path' not in st.session_state:
 # Get current active dataset path
 DATASET_PATH = st.session_state['active_dataset_path']
 
-# Sidebar navigation
+# ═══════════════════════════════════════════════════════════════════════════
+# HORIZONTAL NAVBAR (Top-level navigation)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Create navbar with brand and navigation
+col_brand, col_nav = st.columns([2, 3])
+
+with col_brand:
+    st.markdown("""
+    <div class="navbar-brand-custom">
+        <div class="navbar-brand-text-custom">
+            <div class="navbar-subtitle-custom">AI-Powered Clinical Analytics Platform</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col_nav:
+    # Horizontal navigation using columns
+    nav_col1, nav_col2 = st.columns(2)
+    
+    with nav_col1:
+        if st.button("🎯 Prediction", key="nav_prediction", use_container_width=True, 
+                     type="primary" if st.session_state['main_menu'] == "Prediction" else "secondary"):
+            st.session_state['main_menu'] = "Prediction"
+            st.session_state['sub_page'] = "Readmission Prediction"
+            st.rerun()
+    
+    with nav_col2:
+        if st.button("🔬 Model Training", key="nav_training", use_container_width=True,
+                     type="primary" if st.session_state['main_menu'] == "Model Training" else "secondary"):
+            st.session_state['main_menu'] = "Model Training"
+            st.session_state['sub_page'] = "Dataset Upload"
+            st.rerun()
+
+st.markdown("<hr style='margin: 2rem 0 2rem 0; border: none; border-top: 2px solid #e5e7eb;'>", unsafe_allow_html=True)
+
+main_menu = st.session_state['main_menu']
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SIDEBAR (Sub-navigation and status)
+# ═══════════════════════════════════════════════════════════════════════════
 with st.sidebar:
 
     # ── Custom sidebar CSS ────────────────────────────────────────────────────
@@ -339,22 +446,22 @@ with st.sidebar:
     <style>
     /* Sidebar background */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #0f172a 0%, #1e293b 60%, #0f2027 100%) !important;
+        background: white;
+        color: black;
     }
-    [data-testid="stSidebar"] * { color: #e2e8f0 !important; }
+    [data-testid="stSidebar"] * { color: #000000 !important; }
 
     /* App title */
     .sidebar-title {
         font-size: 1.15rem;
         font-weight: 800;
-        color: #38bdf8 !important;
-        letter-spacing: 0.5px;
-        padding: 4px 0 2px 0;
-        line-height: 1.3;
+        color: #008080 !important;
+        letter-spacing: 0.2px;
+        padding: 0 0 0px 0;
     }
     .sidebar-subtitle {
         font-size: 0.72rem;
-        color: #94a3b8 !important;
+        color: #008080 !important;
         letter-spacing: 1.5px;
         text-transform: uppercase;
         margin-bottom: 4px;
@@ -383,7 +490,7 @@ with st.sidebar:
         border-radius: 8px;
         padding: 7px 12px;
         font-size: 0.78rem;
-        color: #a5b4fc !important;
+        color: black !important;
         margin: 4px 0;
     }
 
@@ -393,7 +500,7 @@ with st.sidebar:
         font-weight: 700;
         letter-spacing: 2px;
         text-transform: uppercase;
-        color: #475569 !important;
+        color: black !important;
         padding: 10px 4px 4px 4px;
     }
 
@@ -410,162 +517,120 @@ with st.sidebar:
         border: 1px solid transparent;
         font-size: 0.9rem;
         font-weight: 600;
-        color: #cbd5e1 !important;
+        color: black !important;
         background: transparent;
         width: 100%;
         text-align: left;
     }
     .nav-card:hover {
-        background: rgba(255,255,255,0.07);
+        background: #008080;
         border-color: rgba(255,255,255,0.1);
-        color: #f1f5f9 !important;
+        color: #ffffff !important;
     }
     .nav-card.active {
-        background: linear-gradient(135deg, #0ea5e9, #0284c7);
+        background: #008080;
         border-color: #38bdf8;
         color: white !important;
         box-shadow: 0 4px 12px rgba(14,165,233,0.3);
     }
     .nav-card.active-green {
-        background: linear-gradient(135deg, #059669, #047857);
-        border-color: #34d399;
+        background: #008080;
+        border-color: #ffffff;
         color: white !important;
         box-shadow: 0 4px 12px rgba(5,150,105,0.3);
     }
     .nav-card.active-purple {
-        background: linear-gradient(135deg, #7c3aed, #6d28d9);
-        border-color: #a78bfa;
+        background: #008080;
+        border-color: #ffffff;
         color: white !important;
         box-shadow: 0 4px 12px rgba(124,58,237,0.3);
     }
     .nav-card.active-teal {
-        background: linear-gradient(135deg, #0f766e, #0d9488);
-        border-color: #2dd4bf;
+        background: #008080;
+        border-color: #ffffff;
         color: white !important;
         box-shadow: 0 4px 12px rgba(15,118,110,0.3);
     }
 
-    /* Divider */
-    .sidebar-divider {
-        border: none;
-        border-top: 1px solid rgba(255,255,255,0.08);
-        margin: 10px 0;
-    }
+
 
     /* Hide default streamlit radio/selectbox labels */
-    [data-testid="stSidebar"] .stRadio label { display: none; }
+    [data-testid="stSidebar"] .stRadio label { display: none; backgroundcolor:#008080}
     </style>
     """, unsafe_allow_html=True)
 
     # ── App Header ────────────────────────────────────────────────────────────
     st.markdown("""
-    <div style="padding: 8px 4px 4px 4px;">
-        <div class="sidebar-subtitle">Smart Analytics Platform</div>
-        <div class="sidebar-title">🏥 Hospital Readmission<br>Risk Analytics</div>
+    <div style="padding: 0px 0px 0px 0px;">
+        <div class="sidebar-title">Hospital Readmission Analytics</div>
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
+    # st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
 
     # ── Backend Status ────────────────────────────────────────────────────────
     backend_healthy = check_backend_health()
 
-    if API_URL is None or (IS_STREAMLIT_CLOUD and not backend_healthy):
-        st.markdown('<div class="status-badge status-blue">🔵 &nbsp; Embedded Mode</div>', unsafe_allow_html=True)
-        with st.expander("ℹ️ About embedded mode", expanded=False):
-            st.caption("Running without backend. Predictions use the embedded ML model.")
-    elif backend_healthy:
-        st.markdown('<div class="status-badge status-green">🟢 &nbsp; Backend Connected</div>', unsafe_allow_html=True)
-        with st.expander("🔗 Connection details", expanded=False):
-            st.caption(f"**URL:** {API_URL}")
-            st.caption("**Model:** Loaded ✅")
-            if st.button("🔄 Test Connection", use_container_width=True):
-                with st.spinner("Testing..."):
-                    try:
-                        resp = requests.get(f"{API_URL}/health", timeout=5)
-                        if resp.status_code == 200:
-                            st.success("✅ Healthy!")
-                        else:
-                            st.error(f"Status {resp.status_code}")
-                    except Exception as e:
-                        st.error(f"Error: {e}")
-    else:
-        st.markdown('<div class="status-badge status-red">🔴 &nbsp; Backend Offline</div>', unsafe_allow_html=True)
-        with st.expander("🔧 Troubleshoot", expanded=False):
-            st.caption(f"**URL:** {API_URL}")
-            st.code("py -m uvicorn backend.main:app --port 8000", language="bash")
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("🔄 Retry", use_container_width=True):
-                    st.rerun()
-            with col2:
-                if st.button("🧪 Test", use_container_width=True):
-                    try:
-                        resp = requests.get(f"{API_URL}/health", timeout=5)
-                        st.success("✅ OK") if resp.status_code == 200 else st.error(f"{resp.status_code}")
-                    except:
-                        st.error("❌ No response")
+    # if API_URL is None or (IS_STREAMLIT_CLOUD and not backend_healthy):
+    #     st.markdown('<div class="status-badge status-blue">🔵 &nbsp; Embedded Mode</div>', unsafe_allow_html=True)
+    #     with st.expander("ℹ️ About embedded mode", expanded=False):
+    #         st.caption("Running without backend. Predictions use the embedded ML model.")
+    # elif backend_healthy:
+    #     st.markdown('<div class="status-badge status-green">🟢 &nbsp; Backend Connected</div>', unsafe_allow_html=True)
+        # with st.expander("🔗 Connection details", expanded=False):
+        #     st.caption(f"**URL:** {API_URL}")
+        #     st.caption("**Model:** Loaded ✅")
+            # if st.button("🔄 Test Connection", use_container_width=True):
+            #     with st.spinner("Testing..."):
+            #         try:
+            #             resp = requests.get(f"{API_URL}/health", timeout=5)
+            #             if resp.status_code == 200:
+            #                 st.success("✅ Healthy!")
+            #             else:
+            #                 st.error(f"Status {resp.status_code}")
+            #         except Exception as e:
+            #             st.error(f"Error: {e}")
+    # else:
+    #     st.markdown('<div class="status-badge status-red">🔴 &nbsp; Backend Offline</div>', unsafe_allow_html=True)
+        # with st.expander("🔧 Troubleshoot", expanded=False):
+        #     st.caption(f"**URL:** {API_URL}")
+        #     st.code("py -m uvicorn backend.main:app --port 8000", language="bash")
+        #     col1, col2 = st.columns(2)
+        #     with col1:
+        #         if st.button("🔄 Retry", use_container_width=True):
+        #             st.rerun()
+        #     with col2:
+        #         if st.button("🧪 Test", use_container_width=True):
+        #             try:
+        #                 resp = requests.get(f"{API_URL}/health", timeout=5)
+        #                 st.success("✅ OK") if resp.status_code == 200 else st.error(f"{resp.status_code}")
+        #             except:
+        #                 st.error("❌ No response")
 
-    # ── Dataset Indicator ─────────────────────────────────────────────────────
-    st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
-    if st.session_state.get('using_uploaded_data', False):
-        ds_icon, ds_label, ds_color = "📤", "Uploaded Dataset", "#a5b4fc"
-    else:
-        ds_icon, ds_label, ds_color = "📊", "Default Dataset", "#6ee7b7"
+    # # ── Dataset Indicator ─────────────────────────────────────────────────────
+    # st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
+    # if st.session_state.get('using_uploaded_data', False):
+    #     ds_icon, ds_label, ds_color = "📤", "Uploaded Dataset", "#a5b4fc"
+    # else:
+    #     ds_icon, ds_label, ds_color = "📊", "Default Dataset", "#6ee7b7"
 
-    record_count = ""
-    if os.path.exists(DATASET_PATH):
-        try:
-            _df = pd.read_csv(DATASET_PATH)
-            record_count = f" · {len(_df):,} records"
-        except:
-            pass
+    # record_count = ""
+    # if os.path.exists(DATASET_PATH):
+    #     try:
+    #         _df = pd.read_csv(DATASET_PATH)
+    #         record_count = f" · {len(_df):,} records"
+    #     except:
+    #         pass
 
-    st.markdown(
-        f'<div class="dataset-pill">{ds_icon} <strong>{ds_label}</strong>{record_count}</div>',
-        unsafe_allow_html=True,
-    )
+    # st.markdown(
+    #     f'<div class="dataset-pill">{ds_icon} <strong>{ds_label}</strong>{record_count}</div>',
+    #     unsafe_allow_html=True,
+    # )
 
-    st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
+    # st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
 
-    # ── Navigation ────────────────────────────────────────────────────────────
-    if 'main_menu' not in st.session_state:
-        st.session_state['main_menu'] = "Prediction"
-    if 'sub_page' not in st.session_state:
-        st.session_state['sub_page'] = "Readmission Prediction"
-
-    # Top-level nav items
-    NAV_ITEMS = [
-        {"key": "Prediction",           "icon": "🎯", "label": "Prediction",          "color": "active-green"},
-        {"key": "Model Training",        "icon": "🔬", "label": "Model Training",       "color": "active"},
-        {"key": "🤖 LLM Medical Advisor","icon": "🤖", "label": "LLM Medical Advisor",  "color": "active-purple"},
-    ]
-
-    st.markdown('<div class="nav-label">Navigation</div>', unsafe_allow_html=True)
-
-    for item in NAV_ITEMS:
-        is_active = st.session_state['main_menu'] == item["key"]
-        css_class = f"nav-card {item['color']}" if is_active else "nav-card"
-        if st.button(
-            f"{item['icon']}  {item['label']}",
-            key=f"nav_{item['key']}",
-            use_container_width=True,
-        ):
-            st.session_state['main_menu'] = item["key"]
-            # Reset sub-page when switching main section
-            if item["key"] == "Prediction":
-                st.session_state['sub_page'] = "Readmission Prediction"
-            elif item["key"] == "Model Training":
-                st.session_state['sub_page'] = "Dataset Upload"
-            st.rerun()
-
-    main_menu = st.session_state['main_menu']
-
-    # ── Sub-navigation ────────────────────────────────────────────────────────
-    if main_menu == "🤖 LLM Medical Advisor":
-        page = "LLM Medical Advisor"
-
-    elif main_menu == "Prediction":
+    # ── Sub-navigation based on main menu ────────────────────────────────────
+    if main_menu == "Prediction":
         st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
         st.markdown('<div class="nav-label">Prediction Tools</div>', unsafe_allow_html=True)
 
@@ -599,7 +664,7 @@ with st.sidebar:
             {"key": "EDA",               "icon": "🔍", "label": "Exploratory Analysis"},
             {"key": "Preprocessing",     "icon": "⚙️", "label": "Preprocessing"},
             {"key": "Model Training",    "icon": "🧠", "label": "Model Training"},
-            {"key": "Model Performance", "icon": "📊", "label": "Model Performance"},
+            {"key": "Model Evaluation", "icon": "📊", "label": "Model Evaluation"},
         ]
         for item in TRAIN_PAGES:
             is_active = st.session_state.get('sub_page') == item["key"]
@@ -618,47 +683,46 @@ with st.sidebar:
                 )
         page = st.session_state.get('sub_page', "Dataset Upload")
 
-    # ── Footer ────────────────────────────────────────────────────────────────
-    st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
-    st.markdown(
-        '<div style="font-size:0.65rem;color:#334155;text-align:center;padding:4px 0;">'
-        'AI-Powered Clinical Analytics<br>v2.0 · Groq LLM Enabled'
-        '</div>',
-        unsafe_allow_html=True,
-    )
+    # # ── Footer ────────────────────────────────────────────────────────────────
+    # st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
+    # st.markdown(
+    #     '<div style="font-size:0.65rem;color:#334155;text-align:center;padding:4px 0;">'
+    #     'AI-Powered Hospital Readmision Analytics<br>v1.0 · LLM Enabled'
+    #     '</div>',
+    #     unsafe_allow_html=True,
+    # )
 
 if page == "Dataset Upload":
-    st.title("Hospital Readmission Overview")
+    # st.title("Hospital Readmission Overview")
     
-    # Data Upload Section
-    st.subheader("📤 Data Management")
+    # # Data Upload Section
+    # st.subheader("📤 Data Management")
     
-    # Show current dataset status
-    if st.session_state.get('using_uploaded_data', False):
-        st.info(f"🔵 **Currently using uploaded dataset**: `{os.path.basename(DATASET_PATH)}`")
-        col1, col2 = st.columns([3, 1])
-        with col2:
-            if st.button("🔄 Switch to Default Dataset"):
-                st.session_state['active_dataset_path'] = DEFAULT_DATASET_PATH
-                st.session_state['using_uploaded_data'] = False
-                st.success("✅ Switched to default dataset!")
-                st.rerun()
-    else:
-        st.info(f"🟢 **Currently using default dataset**: `{os.path.basename(DATASET_PATH)}`")
-    
-    st.divider()
+    # # Show current dataset status
+    # if st.session_state.get('using_uploaded_data', False):
+    #     st.info(f"🔵 **Currently using uploaded dataset**: `{os.path.basename(DATASET_PATH)}`")
+    #     col1, col2 = st.columns([3, 1])
+    #     with col2:
+    #         if st.button("🔄 Switch to Default Dataset"):
+    #             st.session_state['active_dataset_path'] = DEFAULT_DATASET_PATH
+    #             st.session_state['using_uploaded_data'] = False
+    #             st.success("✅ Switched to default dataset!")
+    #             st.rerun()
+    # else:
+    #     st.info(f"🟢 **Currently using default dataset**: `{os.path.basename(DATASET_PATH)}`")
+
     
     # Create tabs for default dataset and custom upload
     tab1, tab2 = st.tabs(["📊 Default Dataset", "📁 Upload Custom Dataset"])
     
     with tab1:
-        st.info("Using the default hospital readmission dataset with 8,000 patient records.")
+        # st.info("Using the default hospital readmission dataset with 8,000 patient records.")
         if os.path.exists(DEFAULT_DATASET_PATH):
             df_default = pd.read_csv(DEFAULT_DATASET_PATH)
-            st.write(f"**Records:** {len(df_default):,}")
-            st.write(f"**Features:** {len(df_default.columns)}")
-            if not st.session_state.get('using_uploaded_data', False):
-                st.success("✅ This dataset is currently active")
+            # st.write(f"**Records:** {len(df_default):,}")
+            # st.write(f"**Features:** {len(df_default.columns)}")
+            # if not st.session_state.get('using_uploaded_data', False):
+            #     st.success("✅ This dataset is currently active")
         
     with tab2:
         st.markdown("Upload your own CSV or Excel file to use across all pages (Overview, EDA, Preprocessing, Model Training, Analytics Dashboard).")
@@ -745,8 +809,7 @@ if page == "Dataset Upload":
                 st.error(f"Error processing file: {str(e)}")
         else:
             st.info("👆 Please upload a CSV or Excel file to continue with custom data")
-    
-    st.divider()
+
     
     analytics = get_analytics()
     if analytics:
@@ -762,31 +825,27 @@ if page == "Dataset Upload":
             st.markdown('<div class="stMetric high-risk-metric">', unsafe_allow_html=True)
             st.metric("High Risk Patients", f"{analytics['high_risk_percentage']:.1%}")
             st.markdown('</div>', unsafe_allow_html=True)
-            
-        st.divider()
+
         
         # Load dataset for detailed overview
         try:
             df = pd.read_csv(DATASET_PATH)
             
-            # Show which dataset is being used
-            if st.session_state.get('using_uploaded_data', False):
-                st.info(f"📊 **Displaying statistics for:** Uploaded Dataset ({len(df):,} records)")
-            else:
-                st.info(f"📊 **Displaying statistics for:** Default Dataset ({len(df):,} records)")
+            # # Show which dataset is being used
+            # if st.session_state.get('using_uploaded_data', False):
+            #     st.info(f"📊 **Displaying statistics for:** Uploaded Dataset ({len(df):,} records)")
+            # else:
+            #     st.info(f"📊 **Displaying statistics for:** Default Dataset ({len(df):,} records)")
             
-            st.markdown("""
-            ### Welcome to the Smart Hospital Readmission Risk Analytics Platform
+            # st.markdown("""
+            # ### Welcome to the Smart Hospital Readmission Risk Analytics Platform
             
-            This AI-powered platform helps healthcare professionals:
-            - 🎯 Predict patient readmission risks using machine learning
-            - 🔍 Identify major risk factors using Explainable AI (SHAP)
-            - 📊 Monitor hospital performance indicators
-            - 💡 Make data-driven decisions to improve patient outcomes
-            """)
-            
-            st.divider()
-            
+            # This AI-powered platform helps healthcare professionals:
+            # - 🎯 Predict patient readmission risks using machine learning
+            # - 🔍 Identify major risk factors using Explainable AI (SHAP)
+            # - 📊 Monitor hospital performance indicators
+            # - 💡 Make data-driven decisions to improve patient outcomes
+            # """)
             # Dataset Overview Section
             st.subheader("📋 Dataset Upload")
             
@@ -824,9 +883,7 @@ if page == "Dataset Upload":
                     st.write(f"- Avg Medications: **{df['medications_count'].mean():.1f}**")
                 if 'readmission_risk_score' in df.columns:
                     st.write(f"- Avg Risk Score: **{df['readmission_risk_score'].mean():.2f}**")
-            
-            st.divider()
-            
+
             # Feature Categories
             st.subheader("🔢 Feature Categories")
             
@@ -857,9 +914,7 @@ if page == "Dataset Upload":
                     unique_count = df[feat].nunique()
                     st.write(f"- {feat} ({unique_count} categories)")
                 st.caption(f"Total: {len(existing_categorical)} features")
-            
-            st.divider()
-            
+
             # Quick Insights
             st.subheader("💡 Quick Insights")
             
@@ -883,47 +938,43 @@ if page == "Dataset Upload":
                 for treatment, count in treatments.items():
                     st.write(f"- {treatment}: {count} ({count/len(df)*100:.1f}%)")
             
-            st.divider()
-            
-            # Retrain Embedded Model Section (if using uploaded data)
-            if st.session_state.get('using_uploaded_data', False) and 'label' in df.columns:
-                st.subheader("🤖 Retrain Embedded Model")
-                st.info("💡 You can retrain the embedded model to use your uploaded dataset for predictions.")
+            # # Retrain Embedded Model Section (if using uploaded data)
+            # if st.session_state.get('using_uploaded_data', False) and 'label' in df.columns:
+            #     st.subheader("🤖 Retrain Embedded Model")
+            #     st.info("💡 You can retrain the embedded model to use your uploaded dataset for predictions.")
                 
-                col1, col2 = st.columns([2, 1])
-                with col1:
-                    st.markdown("""
-                    **Why retrain?**
-                    - Use your hospital's data for predictions
-                    - Model learns patterns from your patient population
-                    - Improves prediction accuracy for your specific context
-                    """)
+            #     col1, col2 = st.columns([2, 1])
+            #     with col1:
+            #         st.markdown("""
+            #         **Why retrain?**
+            #         - Use your hospital's data for predictions
+            #         - Model learns patterns from your patient population
+            #         - Improves prediction accuracy for your specific context
+            #         """)
                 
-                with col2:
-                    if st.button("🔄 Retrain Embedded Model", type="primary", use_container_width=True):
-                        with st.spinner("Training model on your data..."):
-                            try:
-                                # Import training function
-                                import sys
-                                sys.path.insert(0, '.')
-                                from train_model import train_and_evaluate_model
+            #     with col2:
+            #         if st.button("🔄 Retrain Embedded Model", type="primary", use_container_width=True):
+            #             with st.spinner("Training model on your data..."):
+            #                 try:
+            #                     # Import training function
+            #                     import sys
+            #                     sys.path.insert(0, '.')
+            #                     from train_model import train_and_evaluate_model
                                 
-                                # Train the model
-                                train_and_evaluate_model()
+            #                     # Train the model
+            #                     train_and_evaluate_model()
                                 
-                                # Reload embedded predictor
-                                from frontend.embedded_predictor import embedded_predictor
-                                embedded_predictor.load_models()
+            #                     # Reload embedded predictor
+            #                     from frontend.embedded_predictor import embedded_predictor
+            #                     embedded_predictor.load_models()
                                 
-                                st.success("✅ Embedded model retrained successfully!")
-                                st.info("🔄 The model will now use your uploaded data for predictions.")
+            #                     st.success("✅ Embedded model retrained successfully!")
+            #                     st.info("🔄 The model will now use your uploaded data for predictions.")
                                 
-                            except Exception as e:
-                                st.error(f"❌ Error retraining model: {str(e)}")
-                                st.info("💡 Try using the Model Training page for more control.")
-            
-            st.divider()
-            
+            #                 except Exception as e:
+            #                     st.error(f"❌ Error retraining model: {str(e)}")
+            #                     st.info("💡 Try using the Model Training page for more control.")
+
             # Data Visualizations Section
             st.subheader("📊 Data Visualizations")
             
@@ -1031,30 +1082,27 @@ if page == "Dataset Upload":
                     st.markdown("**Readmission Rate by Age Group:**")
                     for idx, row in age_group_rate.iterrows():
                         st.write(f"- {row['age_group']}: {row['rate']:.1f}%")
+
+            # # Model Information
+            # st.subheader("🤖 Model Information")
             
-            st.divider()
-            
-            # Model Information
-            st.subheader("🤖 Model Information")
-            
-            try:
-                with open("models/metrics.json", "r") as f:
-                    metrics = json.load(f)
+            # try:
+            #     with open("models/metrics.json", "r") as f:
+            #         metrics = json.load(f)
                 
-                col1, col2, col3, col4, col5 = st.columns(5)
-                col1.metric("Accuracy", f"{metrics['accuracy']:.1%}")
-                col2.metric("Precision", f"{metrics['precision']:.1%}")
-                col3.metric("Recall", f"{metrics['recall']:.1%}")
-                col4.metric("F1 Score", f"{metrics['f1_score']:.1%}")
-                col5.metric("ROC AUC", f"{metrics['roc_auc']:.3f}")
+            #     col1, col2, col3, col4, col5 = st.columns(5)
+            #     col1.metric("Accuracy", f"{metrics['accuracy']:.1%}")
+            #     col2.metric("Precision", f"{metrics['precision']:.1%}")
+            #     col3.metric("Recall", f"{metrics['recall']:.1%}")
+            #     col4.metric("F1 Score", f"{metrics['f1_score']:.1%}")
+            #     col5.metric("ROC AUC", f"{metrics['roc_auc']:.3f}")
                 
-                st.success("✅ Model is trained and ready for predictions!")
+            #     st.success("✅ Model is trained and ready for predictions!")
                 
-            except FileNotFoundError:
-                st.warning("⚠️ Model not trained yet. Please go to 'Model Training' page to train the model.")
-            
-            st.divider()
-            st.info("👈 Please navigate using the sidebar to explore different functionalities.")
+            # except FileNotFoundError:
+            #     st.warning("⚠️ Model not trained yet. Please go to 'Model Training' page to train the model.")
+
+            # st.info("👈 Please navigate using the sidebar to explore different functionalities.")
             
         except Exception as e:
             st.error(f"Error loading dataset details: {e}")
@@ -1070,7 +1118,7 @@ if page == "Dataset Upload":
 
 elif page == "EDA":
     st.title("Exploratory Data Analysis (EDA)")
-    st.markdown("Analyze the hospital readmission dataset interactively.")
+    # st.markdown("Analyze the hospital readmission dataset interactively.")
     
     try:
         df = pd.read_csv(DATASET_PATH)
@@ -1078,11 +1126,11 @@ elif page == "EDA":
         # Drop patient_id for analysis
         if 'patient_id' in df.columns:
             df_analysis = df.drop(columns=['patient_id', 'admission_date'])
-            st.info("ℹ️ patient_id and admission_date have been excluded from analysis.")
+            # st.info("ℹ️ patient_id and admission_date have been excluded from analysis.")
         else:
             df_analysis = df.copy()
         
-        st.write("### Dataset Overview")
+        # st.write("### Dataset Overview")
         
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("Total Rows", df.shape[0])
@@ -1110,8 +1158,6 @@ elif page == "EDA":
                 fig = px.pie(values=label_counts.values, names=['Not Readmitted', 'Readmitted'],
                             color_discrete_sequence=['#00cc96', '#ef553b'])
                 st.plotly_chart(fig, use_container_width=True)
-        
-        st.divider()
         
         st.write("### Interactive Graph Explorer")
         chart_type = st.selectbox("Select Chart Type", 
@@ -1164,8 +1210,8 @@ elif page == "EDA":
         st.error(f"Error loading dataset: {e}")
 
 elif page == "Preprocessing":
-    st.title("Interactive Data Preprocessing")
-    st.markdown("Configure how to handle missing values, scale numerical features, and encode categorical variables.")
+    # st.title("Interactive Data Preprocessing")
+    # st.markdown("Configure how to handle missing values, scale numerical features, and encode categorical variables.")
     
     if not SKLEARN_AVAILABLE:
         st.error("❌ Scikit-learn not available. Please install required packages.")
@@ -1177,10 +1223,10 @@ elif page == "Preprocessing":
     # Check for custom dataset from Overview page
     if 'custom_dataset_path' in st.session_state:
         dataset_path = st.session_state['custom_dataset_path']
-        st.info(f"📁 Using uploaded dataset: {dataset_path}")
+        # st.info(f"📁 Using uploaded dataset: {dataset_path}")
     else:
         dataset_path = DATASET_PATH
-        st.info("📊 Using default dataset")
+        # st.info("📊 Using default dataset")
     
     # Load dataset
     try:
@@ -1192,7 +1238,6 @@ elif page == "Preprocessing":
         st.stop()
     
     if df is not None:
-        st.divider()
         st.subheader("⚙️ Preprocessing Configuration")
         
         col1, col2, col3 = st.columns(3)
@@ -1298,8 +1343,8 @@ elif page == "Preprocessing":
                     st.code(traceback.format_exc())
 
 elif page == "Model Training":
-    st.title("Automated Model Training")
-    st.markdown("Train the model using your preprocessed dataset.")
+    # st.title("Automated Model Training")
+    # st.markdown("Train the model using your preprocessed dataset.")
     
     if not SKLEARN_AVAILABLE:
         st.error("❌ Scikit-learn not available. Please install required packages.")
@@ -1315,7 +1360,7 @@ elif page == "Model Training":
     # Check for custom dataset from Overview page
     if 'custom_dataset_path' in st.session_state:
         dataset_path = st.session_state['custom_dataset_path']
-        st.info(f"📁 Using uploaded dataset: {dataset_path}")
+        # st.info(f"📁 Using uploaded dataset: {dataset_path}")
     else:
         st.info("📊 Using default dataset")
     
@@ -1340,7 +1385,6 @@ elif page == "Model Training":
         dataset_available = False
     
     if dataset_available:
-        st.divider()
         st.subheader("🤖 Model Configuration")
         
         test_size_pct = st.slider("Test Set Size (%)", min_value=10, max_value=50, value=20, step=5) / 100.0
@@ -1512,13 +1556,21 @@ elif page == "Model Training":
 
 elif page == "Readmission Prediction":
     st.title("🔮 Readmission Prediction")
-    st.markdown("Predict hospital readmission risk for individual patients or batch processing")
     
-    # Create tabs for single vs batch prediction
-    tab1, tab2 = st.tabs(["📝 Single Patient Prediction", "📊 Batch Prediction (Upload File)"])
+    # Create tabs for LLM advisor, single prediction, and batch prediction
+    tab1, tab2, tab3 = st.tabs(["🤖 AI Medical Advisor", "📝 Single Patient Prediction", "📊 Batch Prediction (Upload File)"])
     
-    # ==================== TAB 1: SINGLE PATIENT PREDICTION ====================
+    # ==================== TAB 1: LLM MEDICAL ADVISOR ====================
     with tab1:
+        try:
+            from frontend.llm_advisor_page import render_llm_advisor_page
+            render_llm_advisor_page(API_URL or "http://localhost:8000")
+        except ImportError as e:
+            st.error(f"Could not load AI Medical Advisor: {e}")
+            st.info("Make sure the llm_advisor_page.py module is available in the frontend directory.")
+    
+    # ==================== TAB 2: SINGLE PATIENT PREDICTION ====================
+    with tab2:
         st.markdown("### Enter Patient Details")
         st.markdown("Fill in the form below to predict readmission risk for a single patient.")
         
@@ -1591,7 +1643,6 @@ elif page == "Readmission Prediction":
                 result = get_prediction(data)
                 
             if result:
-                st.divider()
                 st.subheader("📊 Prediction Results")
                 st.info(f"Model Used: **{result.get('model_type', 'Unknown')}**")
                 
@@ -1634,8 +1685,8 @@ elif page == "Readmission Prediction":
                     else:
                         st.warning("Feature importance not available for this prediction.")
     
-    # ==================== TAB 2: BATCH PREDICTION ====================
-    with tab2:
+    # ==================== TAB 3: BATCH PREDICTION ====================
+    with tab3:
         st.markdown("### 📤 Upload Patient Data File")
         st.markdown("Upload a CSV or Excel file with multiple patient records for batch prediction.")
         
@@ -1702,8 +1753,6 @@ elif page == "Readmission Prediction":
         
         with col2:
             st.info("💡 Download the template to see the correct format, then fill it with your patient data.")
-        
-        st.divider()
         
         # File upload
         uploaded_file = st.file_uploader(
@@ -1823,7 +1872,6 @@ elif page == "Readmission Prediction":
                             cols_order = ['prediction', 'probability', 'risk_category'] + required_cols
                         df_results = df_results[cols_order]
                         
-                        st.divider()
                         st.subheader("📊 Batch Prediction Results")
                         
                         # Summary statistics
@@ -1840,9 +1888,6 @@ elif page == "Readmission Prediction":
                         col3.metric("High Risk Patients", high_risk_count,
                                    delta=f"{high_risk_count/total_patients:.1%}")
                         col4.metric("Avg Probability", f"{avg_probability:.1%}")
-                        
-                        st.divider()
-                        
                         # Show results table
                         st.markdown("### 📋 Detailed Results")
                         
@@ -1860,8 +1905,6 @@ elif page == "Readmission Prediction":
                             use_container_width=True,
                             height=400
                         )
-                        
-                        st.divider()
                         
                         # Download options
                         st.markdown("### 💾 Download Results")
@@ -1897,9 +1940,6 @@ elif page == "Readmission Prediction":
                                 )
                             else:
                                 st.info("Excel download not available. Use CSV instead.")
-                        
-                        # Visualization
-                        st.divider()
                         st.markdown("### 📈 Results Visualization")
                         
                         col1, col2 = st.columns(2)
@@ -1940,8 +1980,6 @@ elif page == "Readmission Prediction":
                     st.code(traceback.format_exc())
 
 elif page == "Analytics Dashboard":
-    st.title("🏥 Hospital Analytics Dashboard")
-    st.markdown("Comprehensive analytics with hospital-themed visualizations in card layout")
     
     # Custom CSS for modern card design
     st.markdown("""
@@ -2089,6 +2127,82 @@ elif page == "Analytics Dashboard":
                 st.plotly_chart(fig, use_container_width=True, key="card_gauge")
         
         st.markdown("<br>", unsafe_allow_html=True)
+
+
+        # Row 4: Geographic & Seasonal Patterns Cards
+        st.markdown("### 🌍 Geographic & Gender Patterns")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            with st.container():
+                st.markdown('<div class="card-title">🗺️ Readmission by Region</div>', unsafe_allow_html=True)
+                region_data = df.groupby('region')['label'].agg(['sum', 'count']).reset_index()
+                region_data['rate'] = region_data['sum'] / region_data['count']
+                
+                fig = px.pie(
+                    region_data,
+                    values='count',
+                    names='region',
+                    color='region',
+                    color_discrete_sequence=HOSPITAL_COLORS['categorical'],
+                    hole=0.5
+                )
+                fig.update_traces(
+                    textposition='inside',
+                    textinfo='percent+label',
+                    hovertemplate='<b>%{label}</b><br>Patients: %{value}<br>Percentage: %{percent}<extra></extra>'
+                )
+                fig.update_layout(height=350, margin=dict(t=20, b=20, l=20, r=20), showlegend=True)
+                st.plotly_chart(fig, use_container_width=True, key="card_region")
+                
+                # # Show rates below
+                # st.markdown("**Readmission Rates by Region:**")
+                # for _, row in region_data.iterrows():
+                #     color = "🟢" if row['rate'] < 0.4 else "🟡" if row['rate'] < 0.6 else "🔴"
+                #     st.write(f"{color} {row['region'].title()}: **{row['rate']:.1%}** ({row['count']:,} patients)")
+        
+        with col2:
+            with st.container():
+                st.markdown('<div class="card-title">👥 Readmission by Gender</div>', unsafe_allow_html=True)
+                
+                # Prepare gender data
+                gender_data = df.groupby(['gender', 'label']).size().reset_index(name='count')
+                gender_data['label'] = gender_data['label'].map({0: 'Not Readmitted', 1: 'Readmitted'})
+                
+                # Create grouped bar chart
+                fig = px.bar(
+                    gender_data,
+                    x='gender',
+                    y='count',
+                    color='label',
+                    barmode='group',
+                    color_discrete_map={
+                        'Not Readmitted': HOSPITAL_COLORS['success'],
+                        'Readmitted': HOSPITAL_COLORS['danger']
+                    },
+                    labels={
+                        'count': 'Number of Patients',
+                        'gender': 'Gender',
+                        'label': 'Outcome'
+                    },
+                    hover_data={'count': ':,'}
+                )
+                fig.update_layout(
+                    height=350,
+                    margin=dict(t=20, b=40, l=20, r=20),
+                    yaxis_title="Number of Patients",
+                    xaxis_title="Gender",
+                    legend_title="Outcome",
+                    hovermode='x unified',
+                    xaxis={'categoryorder': 'total descending'}
+                )
+                fig.update_traces(
+                    hovertemplate='<b>%{x}</b><br>%{fullData.name}: %{y:,}<extra></extra>'
+                )
+                st.plotly_chart(fig, use_container_width=True, key="card_gender")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
         
         # Row 2: Clinical Analysis Cards
         st.markdown("### 🏥 Clinical Analysis")
@@ -2214,77 +2328,6 @@ elif page == "Analytics Dashboard":
         
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # Row 4: Geographic & Seasonal Patterns Cards
-        st.markdown("### 🌍 Geographic & Seasonal Patterns")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # CARD 7: Regional Distribution
-            with st.container():
-                st.markdown('<div class="card-title">🗺️ Readmission by Region</div>', unsafe_allow_html=True)
-                region_data = df.groupby('region')['label'].agg(['sum', 'count']).reset_index()
-                region_data['rate'] = region_data['sum'] / region_data['count']
-                
-                fig = px.pie(
-                    region_data,
-                    values='count',
-                    names='region',
-                    color='region',
-                    color_discrete_sequence=HOSPITAL_COLORS['categorical'],
-                    hole=0.5
-                )
-                fig.update_traces(
-                    textposition='inside',
-                    textinfo='percent+label',
-                    hovertemplate='<b>%{label}</b><br>Patients: %{value}<br>Percentage: %{percent}<extra></extra>'
-                )
-                fig.update_layout(height=350, margin=dict(t=20, b=20, l=20, r=20), showlegend=True)
-                st.plotly_chart(fig, use_container_width=True, key="card_region")
-                
-                # Show rates below
-                st.markdown("**Readmission Rates by Region:**")
-                for _, row in region_data.iterrows():
-                    color = "🟢" if row['rate'] < 0.4 else "🟡" if row['rate'] < 0.6 else "🔴"
-                    st.write(f"{color} {row['region'].title()}: **{row['rate']:.1%}** ({row['count']:,} patients)")
-        
-        with col2:
-            # CARD 8: Seasonal Patterns
-            with st.container():
-                st.markdown('<div class="card-title">🌤️ Seasonal Readmission Patterns</div>', unsafe_allow_html=True)
-                season_data = df.groupby('season')['label'].agg(['mean', 'count']).reset_index()
-                season_data.columns = ['Season', 'Rate', 'Count']
-                season_order = ['winter', 'spring', 'summer', 'fall']
-                season_data['Season'] = pd.Categorical(season_data['Season'], categories=season_order, ordered=True)
-                season_data = season_data.sort_values('Season')
-                
-                fig = px.bar(
-                    season_data,
-                    x='Season',
-                    y='Rate',
-                    color='Season',
-                    color_discrete_map={
-                        'winter': '#4A90E2',  # Blue
-                        'spring': '#7ED321',  # Green
-                        'summer': '#F5A623',  # Orange
-                        'fall': '#D0021B'     # Red
-                    },
-                    hover_data={'Count': True, 'Rate': ':.1%'},
-                    labels={'Rate': 'Readmission Rate', 'Season': 'Season'}
-                )
-                fig.update_layout(
-                    height=350,
-                    margin=dict(t=20, b=40, l=20, r=20),
-                    yaxis_tickformat='.0%',
-                    showlegend=False,
-                    yaxis_title="Readmission Rate",
-                    xaxis_title="Season"
-                )
-                fig.update_traces(
-                    hovertemplate='<b>%{x}</b><br>Rate: %{y:.1%}<br>Patients: %{customdata[0]}<extra></extra>'
-                )
-                st.plotly_chart(fig, use_container_width=True, key="card_season")
-        
-        st.markdown("<br>", unsafe_allow_html=True)
         
         # Row 5: Insurance & Previous Readmissions Cards
         st.markdown("### 💳 Insurance & Historical Patterns")
@@ -2494,8 +2537,8 @@ elif page == "Analytics Dashboard":
         import traceback
         st.code(traceback.format_exc())
 
-elif page == "Model Performance":
-    st.title("Model Performance & Explainability")
+elif page == "Model Evaluation":
+    st.title("Model Evaluation & Explainability")
     
     try:
         # Check if required files exist
@@ -2503,7 +2546,7 @@ elif page == "Model Performance":
         if not os.path.exists("models/metrics.json"):
             st.info("ℹ️ No trained model found. Please train a model first or run locally for full functionality.")
             st.markdown("""
-            **To see model performance:**
+            **To see model Evaluation:**
             1. Go to Model Training page and train a model
             2. Or run the app locally with pre-trained models
             """)
@@ -2513,15 +2556,15 @@ elif page == "Model Performance":
             metrics = json.load(f)
             
         col1, col2, col3, col4, col5 = st.columns(5)
-        col1.metric("Accuracy", f"{metrics['accuracy']:.1%}")
-        col2.metric("Precision", f"{metrics['precision']:.1%}")
-        col3.metric("Recall", f"{metrics['recall']:.1%}")
-        col4.metric("F1 Score", f"{metrics['f1_score']:.1%}")
+        col1.metric("Accuracy", f"{metrics['accuracy']:.2%}")
+        col2.metric("Precision", f"{metrics['precision']:.2%}")
+        col3.metric("Recall", f"{metrics['recall']:.2%}")
+        col4.metric("F1 Score", f"{metrics['f1_score']:.2%}")
         col5.metric("ROC AUC", f"{metrics['roc_auc']:.3f}")
         
         st.divider()
         st.subheader("Global Feature Importance")
-        st.markdown("The following chart shows the most important features learned by the model.")
+        # st.markdown("The following chart shows the most important features learned by the model.")
         
         if JOBLIB_AVAILABLE:
             import joblib
@@ -2590,11 +2633,3 @@ elif page == "Model Performance":
         - F1 Score: 79.0%
         - ROC AUC: 0.845
         """)
-
-
-elif page == "LLM Medical Advisor":
-    try:
-        from frontend.llm_advisor_page import render_llm_advisor_page
-        render_llm_advisor_page(API_URL or "http://localhost:8000")
-    except ImportError as e:
-        st.error(f"❌ Could not load LLM Medical Advisor page: {e}")

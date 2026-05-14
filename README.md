@@ -113,19 +113,7 @@ An end-to-end AI-powered healthcare analytics platform that predicts hospital re
 │  3. Random Forest prediction                                 │
 │  4. Calculate SHAP values (feature importance)               │
 │  5. Return prediction + probability + explanations           │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      DATA & MODELS                           │
-│                                                              │
-│  • hospital_readmission_dataset.csv (8,000 patients)        │
-│  • random_forest_model.joblib (trained classifier)          │
-│  • preprocessor.joblib (fitted preprocessing pipeline)      │
-│  • label_encoder.joblib (target encoding)                   │
-│  • feature_names.json (feature list after encoding)         │
-│  • metrics.json (model performance metrics)                 │
-└─────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -162,12 +150,14 @@ An end-to-end AI-powered healthcare analytics platform that predicts hospital re
 
 ```
 ├── backend/              # FastAPI application
+|   |__llm_advisor.py     # LLM endpoint
 │   ├── main.py          # API endpoints
 │   ├── models.py        # Pydantic models
 │   └── predictor.py     # Prediction logic
 ├── frontend/            # Streamlit dashboard
 |   ├── app.py          # Interactive UI
 │   ├── embedded_predictor.py # To load Embedded Model
+|   |__llm_advisor_page.py  # AI Advisiory Dashboard
 ├── utils/              # Utilities
 │   ├── preprocess.py   # Data preprocessing
 ├── data/               # Dataset
@@ -193,16 +183,6 @@ The application supports **dynamic dataset switching**. When you upload a custom
 3. Upload CSV or Excel file with 14 required columns
 4. Click **"Save & Activate Dataset"**
 5. ✅ Your data is now active across all pages!
-
-**Visual Indicators:**
-- **Sidebar** shows active dataset: "📊 Active Dataset: Uploaded Data" or "Default Data"
-- **Overview page** shows current dataset status with switch button
-- Easy switching between uploaded and default datasets
-
-**Required Columns for Upload:**
-- All 14 feature columns (see Dataset Information section)
-- `label` column (0 = Not Readmitted, 1 = Readmitted) - Required for training
-- Optional: `patient_id`, `admission_date` (excluded from training)
 
 ---
 
@@ -347,92 +327,6 @@ Process multiple patients at once using CSV or Excel files. Perfect for daily ri
 - **Population Health**: Upload entire patient cohort, analyze risk distribution
 - **Research**: Retrospective analysis, what-if scenarios
 
----
-
-## 📊 Analytics Dashboard Guide
-
-### Hospital-Themed Color Palette
-
-**Primary Colors:**
-- **Medical Blue** (#0066CC) - Trust, information
-- **Medical Green** (#00A86B) - Success, safe outcomes
-- **Medical Red** (#DC143C) - Danger, high risk
-- **Medical Orange** (#FF6B35) - Warning, attention
-- **Medical Teal** (#20B2AA) - Information, calm
-- **Medical Purple** (#9370DB) - Special categories
-
-**Color Meanings:**
-- 🟢 Green = Not Readmitted, Safe, Low Risk
-- 🔴 Red = Readmitted, Danger, High Risk
-- 🟡 Yellow/Orange = Warning, Medium Risk
-- 🔵 Blue = Neutral, Information
-
-### Available Chart Types
-
-The dashboard includes 12+ interactive chart types:
-
-1. **Donut Charts** - Part-to-whole relationships (readmission distribution)
-2. **Gauge Charts** - Performance indicators with color zones
-3. **Horizontal Bar Charts** - Sorted comparisons (diagnosis rates)
-4. **Stacked Bar Charts** - Composition analysis (treatment types)
-5. **Area Charts** - Age distribution trends
-6. **Violin Plots** - Length of stay distributions
-7. **Scatter Plots** - Comorbidities vs medications relationships
-8. **Heatmaps** - Risk factor correlations
-9. **Funnel Charts** - Insurance type distribution
-10. **Line Charts** - Previous readmissions trends
-11. **Pie Charts** - Regional distribution
-12. **Combination Charts** - Line + bar for dual metrics
-
-### Dashboard Sections
-
-**1. Key Performance Indicators (KPIs)**
-- Total Patients
-- Readmission Rate (with delta)
-- Average Length of Stay
-- High Risk Patients (%)
-- Average Age
-
-**2. Readmission Overview**
-- Overall distribution donut chart
-- Readmission rate gauge with zones (Green: 0-30%, Orange: 30-60%, Red: 60-100%)
-
-**3. Clinical Analysis**
-- Readmission rate by primary diagnosis (sorted horizontal bar)
-- Treatment type distribution (stacked bar showing readmitted vs not)
-
-**4. Demographics & Stay Duration**
-- Age distribution by readmission status (area chart)
-- Length of stay distribution (violin plot with box plot overlay)
-
-**5. Geographic & Seasonal Patterns**
-- Regional distribution (donut chart)
-- Seasonal readmission patterns (bar chart with season-specific colors)
-- Insurance type distribution (funnel chart)
-
-**6. Risk Factors Analysis**
-- Comorbidities vs medications scatter plot (bubble size = risk score)
-- Risk factor correlation heatmap
-- Previous readmissions trend (line + bar combination)
-
-**7. Summary Statistics**
-- Age statistics (min, max, median, std dev)
-- Length of stay statistics
-- Comorbidities statistics
-- Medications statistics
-
-### Interactive Features
-
-**All charts support:**
-- **Hover**: View detailed information
-- **Click**: Filter by category (legend items)
-- **Zoom**: Box select or scroll to zoom
-- **Pan**: Drag to pan across data
-- **Reset**: Double-click to reset view
-- **Responsive**: Adapts to screen size
-
----
-
 ### Testing CORS
 
 **Local Testing:**
@@ -442,71 +336,6 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
 # Start frontend
 streamlit run frontend/app.py
-
-
-
-## 📊 Dataset Information
-
-**Current Dataset:** `hospital_readmission_dataset.csv`
-
-- **Total Patients:** 8,000
-- **Total Features:** 14 (+ 2 identifiers excluded from training)
-- **Target Variable:** `label` (0 = Not Readmitted, 1 = Readmitted)
-
-### Features
-
-**Categorical (7):**
-- season, gender, region
-- primary_diagnosis, treatment_type
-- insurance_type, discharge_disposition
-
-**Numerical (7):**
-- age, comorbidities_count, length_of_stay
-- medications_count, followup_visits_last_year
-- prev_readmissions, readmission_risk_score
-
-**Excluded from Training:**
-- patient_id (identifier)
-- admission_date (identifier)
-
----
-
----
-
-## 🛠️ Troubleshooting
-
-### Common Issues & Solutions
-
-#### 1. Batch Prediction Fails
-
-**Symptoms:**
-- "Missing required columns" error
-- "Error processing file" message
-
-**Solutions:**
-- Ensure file has all 14 required columns
-- Check column names match exactly (case-insensitive)
-- Verify data types (numbers in numeric columns)
-- Remove special characters from categorical values
-- Use CSV instead of Excel for large files
-- Check file size (max 10,000 rows recommended)
-
-#### 2. Visualizations Not Showing
-
-**Symptoms:**
-- Blank charts or missing visualizations
-- "Error loading data" messages
-
-**Solutions:**
-```bash
-# Verify dataset exists
-dir data\hospital_readmission_dataset.csv
-
-# Check plotly is installed
-pip install plotly
-
-# Verify data structure
-python -c "import pandas as pd; df = pd.read_csv('data/hospital_readmission_dataset.csv'); print(df.shape)"
 
 # Clear Streamlit cache
 streamlit cache clear
